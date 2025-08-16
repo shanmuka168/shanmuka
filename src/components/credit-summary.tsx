@@ -8,7 +8,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
-import { ArrowLeft, TrendingUp, TrendingDown, CheckCircle, XCircle, Info, ThumbsUp, ThumbsDown, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Info, ThumbsUp, ThumbsDown, AlertTriangle } from 'lucide-react';
 import {
   ChartContainer,
   ChartTooltip,
@@ -247,19 +247,19 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                         <div className="p-4 border rounded-lg">
                             <p className="text-sm text-muted-foreground">1-30 DPD</p>
-                            <p className="text-2xl font-bold text-orange-500">{dpdAnalysis['1-30']}</p>
+                            <p className="text-2xl font-bold text-yellow-500">{dpdAnalysis['1-30']}</p>
                         </div>
                         <div className="p-4 border rounded-lg">
                             <p className="text-sm text-muted-foreground">31-60 DPD</p>
-                            <p className="text-2xl font-bold text-red-500">{dpdAnalysis['31-60']}</p>
+                            <p className="text-2xl font-bold text-orange-500">{dpdAnalysis['31-60']}</p>
                         </div>
                         <div className="p-4 border rounded-lg">
                             <p className="text-sm text-muted-foreground">61-90 DPD</p>
-                            <p className="text-2xl font-bold text-red-700">{dpdAnalysis['61-90']}</p>
+                            <p className="text-2xl font-bold text-red-500">{dpdAnalysis['61-90']}</p>
                         </div>
                         <div className="p-4 border rounded-lg">
                             <p className="text-sm text-muted-foreground">90+ DPD</p>
-                            <p className="text-2xl font-bold text-black">{dpdAnalysis['90+']}</p>
+                            <p className="text-2xl font-bold text-red-700">{dpdAnalysis['90+']}</p>
                         </div>
                     </div>
                 </CardContent>
