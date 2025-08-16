@@ -24,7 +24,13 @@ import { summarizePaymentBehavior, SummarizePaymentBehaviorInput } from "@/ai/fl
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { Switch } from './ui/switch';
+import { Input } from './ui/input';
 
+interface EnhancedAccountDetail extends AccountDetail {
+  isConsidered: boolean;
+  manualEmi?: number;
+}
 interface CreditSummaryProps {
   analysis: CibilReportAnalysis;
   onBack: () => void;
@@ -79,7 +85,9 @@ type OwnershipType = 'Individual' | 'Guarantor' | 'Joint';
 
 export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     const { toast } = useToast();
-    const [detailedAccounts, setDetailedAccounts] = useState<AccountDetail[]>(analysis.detailedAccounts);
+    const [detailedAccounts, setDetailedAccounts] = useState<EnhancedAccountDetail[]>(
+        analysis.detailedAccounts.map(acc => ({...acc, isConsidered: true }))
+    );
     const [dpdFilter, setDpdFilter] = useState('12');
     const [isAiSummaryLoading, startAiSummaryTransition] = useTransition();
     const summaryRef = useRef<HTMLDivElement>(null);
@@ -90,15 +98,20 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         'Joint': null,
     });
 
-    const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status === 'Active'), [detailedAccounts]);
+    const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status === 'Active' && acc.isConsidered), [detailedAccounts]);
 
     const summaryData = useMemo(() => {
-        const totalSanctioned = detailedAccounts.reduce((sum, acc) => sum + acc.sanctionedAmount, 0);
-        const totalOutstanding = detailedAccounts.reduce((sum, acc) => sum + acc.currentBalance, 0);
-        const totalEmi = activeAccounts.reduce((sum, acc) => sum + (acc.emi || 0), 0);
+        const consideredAccounts = detailedAccounts.filter(acc => acc.isConsidered);
+        const totalSanctioned = consideredAccounts.reduce((sum, acc) => sum + acc.sanctionedAmount, 0);
+        const totalOutstanding = consideredAccounts.reduce((sum, acc) => sum + acc.currentBalance, 0);
+        const totalEmi = consideredAccounts.reduce((sum, acc) => {
+            if (acc.status !== 'Active') return sum;
+            return sum + (acc.manualEmi ?? acc.emi || 0);
+        }, 0);
+
         const creditUtilization = totalSanctioned > 0 ? (totalOutstanding / totalSanctioned) * 100 : 0;
         
-        const statusCounts = detailedAccounts.reduce((counts, acc) => {
+        const statusCounts = consideredAccounts.reduce((counts, acc) => {
             const status = acc.status.toLowerCase();
             if (status.includes('written off')) counts.writtenOff++;
             else if (status.includes('doubtful')) counts.doubtful++;
@@ -109,7 +122,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         }, { active: 0, closed: 0, writtenOff: 0, doubtful: 0, settled: 0 });
 
         return {
-            totalAccounts: detailedAccounts.length,
+            totalAccounts: consideredAccounts.length,
             activeAccounts: statusCounts.active,
             closedAccounts: statusCounts.closed,
             totalSanctioned: `₹${totalSanctioned.toLocaleString('en-IN')}`,
@@ -120,7 +133,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             settled: statusCounts.settled,
             totalEmi: `₹${totalEmi.toLocaleString('en-IN')}`
         };
-    }, [detailedAccounts, activeAccounts]);
+    }, [detailedAccounts]);
     
     const dpdAnalysis = useMemo(() => {
         const months = dpdFilter === 'overall' ? 36 : parseInt(dpdFilter);
@@ -223,7 +236,10 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                             history: acc.paymentHistory.slice(0, months)
                         }));
 
-                    if (paymentHistoryForAI.length === 0) return;
+                    if (paymentHistoryForAI.length === 0) {
+                        setBehaviorAnalyses(prev => ({...prev, [type]: baseAnalysis}));
+                        return;
+                    }
 
                     const result = await summarizePaymentBehavior({
                         rating: baseAnalysis.rating,
@@ -244,13 +260,13 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     }, [dpdFilter, activeAccounts, calculateBehaviorAnalysis, toast]);
 
 
-    const pieChartData = [
+    const pieChartData = useMemo(() => [
         { name: 'Active', value: summaryData.activeAccounts, fill: 'hsl(var(--chart-1))' },
         { name: 'Closed', value: summaryData.closedAccounts, fill: 'hsl(var(--chart-2))' },
         { name: 'Written Off', value: summaryData.writtenOff, fill: 'hsl(var(--chart-3))' },
         { name: 'Settled', value: summaryData.settled, fill: 'hsl(var(--chart-4))' },
         { name: 'Doubtful', value: summaryData.doubtful, fill: 'hsl(var(--chart-5))' },
-    ].filter(d => d.value > 0);
+    ].filter(d => d.value > 0), [summaryData]);
 
     const chartConfig = {
         value: { label: "Accounts" },
@@ -261,11 +277,11 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         Doubtful: { label: "Doubtful", color: "hsl(var(--chart-5))" },
     } as const;
 
-    const handleStatusChange = (newStatus: string, index: number) => {
+    const handleAccountChange = (index: number, updates: Partial<EnhancedAccountDetail>) => {
         const newAccounts = [...detailedAccounts];
-        newAccounts[index].status = newStatus as AccountDetail['status'];
+        newAccounts[index] = { ...newAccounts[index], ...updates };
         setDetailedAccounts(newAccounts);
-    }
+    };
     
     const handleDownload = async () => {
         const element = summaryRef.current;
@@ -277,6 +293,16 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             scale: 2,
             useCORS: true,
             logging: true,
+            onclone: (document) => {
+                 // Hide interactive elements in the clone
+                document.querySelectorAll('button, input, [role="switch"], [role="combobox"]').forEach(el => {
+                    const nonInteractiveEl = document.createElement('div');
+                    nonInteractiveEl.innerHTML = (el as HTMLElement).innerText || (el as HTMLInputElement).value || '';
+                    if (el.parentElement) {
+                        el.parentElement.replaceChild(nonInteractiveEl, el);
+                    }
+                });
+            }
         });
 
         const pdf = new jsPDF({
@@ -424,6 +450,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Consider</TableHead>
                   <TableHead>Account Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Sanctioned</TableHead>
@@ -434,20 +461,31 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
               </TableHeader>
               <TableBody>
                 {detailedAccounts.map((acc, index) => {
-                    const isEditable = acc.sanctionedAmount > 0 && acc.currentBalance === 0;
+                    const isStatusEditable = acc.status.toLowerCase() === 'active' && acc.currentBalance === 0;
+                    const isEmiEditable = acc.status.toLowerCase() === 'active' && acc.sanctionedAmount > 0 && acc.currentBalance > 0;
 
                     return (
                         <React.Fragment key={acc.accountType + index}>
-                            <TableRow>
+                            <TableRow className={!acc.isConsidered ? 'bg-muted/50' : ''}>
+                                <TableCell>
+                                     <Switch
+                                        checked={acc.isConsidered}
+                                        onCheckedChange={(checked) => handleAccountChange(index, { isConsidered: checked })}
+                                        aria-label="Consider account"
+                                    />
+                                </TableCell>
                                 <TableCell className="font-medium">
                                     <div>{acc.accountType}</div>
                                     <div className="text-xs text-muted-foreground">({acc.ownershipType})</div>
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex flex-col gap-1">
-                                        {isEditable ? (
-                                            <Select value={acc.status} onValueChange={(newStatus) => handleStatusChange(newStatus, index)}>
-                                                <SelectTrigger className={cn("w-fit border-none h-auto p-1.5 rounded-md text-xs", getStatusColor(acc.status), acc.status.toLowerCase() === 'active' ? 'text-white' : '')}>
+                                        {isStatusEditable ? (
+                                            <Select 
+                                                value={acc.status} 
+                                                onValueChange={(newStatus) => handleAccountChange(index, { status: newStatus as AccountDetail['status'] })}
+                                            >
+                                                <SelectTrigger className={cn("w-fit border-none h-auto p-1.5 rounded-md text-xs", getStatusColor(acc.status), getStatusColor(acc.status) === 'bg-green-500' ? 'text-white' : '')}>
                                                     <SelectValue/>
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -468,11 +506,23 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                 <TableCell className="text-right">₹{acc.sanctionedAmount.toLocaleString('en-IN')}</TableCell>
                                 <TableCell className="text-right">₹{acc.currentBalance.toLocaleString('en-IN')}</TableCell>
                                 <TableCell className="text-right text-red-500">₹{acc.overdueAmount.toLocaleString('en-IN')}</TableCell>
-                                <TableCell className="text-right">₹{(acc.emi || 0).toLocaleString('en-IN')}</TableCell>
+                                 <TableCell className="text-right">
+                                    {isEmiEditable ? (
+                                        <Input
+                                            type="number"
+                                            className="w-24 h-8 text-right"
+                                            value={acc.manualEmi ?? acc.emi || ''}
+                                            onChange={(e) => handleAccountChange(index, { manualEmi: e.target.valueAsNumber })}
+                                            placeholder="EMI"
+                                        />
+                                    ) : (
+                                        `₹${(acc.emi || 0).toLocaleString('en-IN')}`
+                                    )}
+                                </TableCell>
                             </TableRow>
-                            <TableRow>
-                                <TableCell colSpan={6} className="p-2">
-                                   <div className="flex gap-1 flex-wrap p-2 bg-muted/50 rounded-md">
+                            <TableRow className={!acc.isConsidered ? 'bg-muted/50' : ''}>
+                                <TableCell colSpan={7} className="p-2">
+                                   <div className="flex gap-1 flex-wrap p-2 bg-background/50 rounded-md">
                                         <span className="text-xs font-semibold mr-2 flex items-center">Payment History:</span>
                                         {acc.paymentHistory.slice(0, 36).map((dpd, i) => (
                                         <DpdCircle key={i} value={dpd} />
@@ -491,3 +541,5 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </div>
   );
 }
+
+    
