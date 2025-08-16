@@ -8,17 +8,24 @@ import { SummaryCards } from "./summary-cards";
 import { TransactionsTable } from "./transactions-table";
 import { SpendingCharts } from "./spending-charts";
 import { Button } from "./ui/button";
-import { Upload, Trash2, FileUp } from "lucide-react";
+import { Upload, Trash2, FileUp, LoaderCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { Input } from "./ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { analyzeCibilReport, CibilReportAnalysis } from "@/ai/flows/analyze-cibil-flow";
+import { CibilAnalysisCard } from "./cibil-analysis-card";
 
 const LOCAL_STORAGE_KEY = "finsight-transactions";
+const CIBIL_ANALYSIS_KEY = "finsight-cibil-analysis";
 
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [cibilFile, setCibilFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [cibilAnalysis, setCibilAnalysis] = useState<CibilReportAnalysis | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     try {
@@ -26,8 +33,12 @@ export default function Dashboard() {
       if (storedTransactions) {
         setTransactions(JSON.parse(storedTransactions));
       }
+      const storedCibilAnalysis = localStorage.getItem(CIBIL_ANALYSIS_KEY);
+      if (storedCibilAnalysis) {
+        setCibilAnalysis(JSON.parse(storedCibilAnalysis));
+      }
     } catch (error) {
-      console.error("Failed to load transactions from local storage", error);
+      console.error("Failed to load data from local storage", error);
     } finally {
         setIsLoading(false);
     }
@@ -41,6 +52,19 @@ export default function Dashboard() {
       console.error("Failed to save transactions to local storage", error);
     }
   };
+
+  const handleSetCibilAnalysis = (analysis: CibilReportAnalysis | null) => {
+    try {
+        setCibilAnalysis(analysis);
+        if (analysis) {
+            localStorage.setItem(CIBIL_ANALYSIS_KEY, JSON.stringify(analysis));
+        } else {
+            localStorage.removeItem(CIBIL_ANALYSIS_KEY);
+        }
+    } catch (error) {
+        console.error("Failed to save CIBIL analysis to local storage", error);
+    }
+  }
   
   const loadSampleData = () => {
     handleSetTransactions(mockTransactions);
@@ -48,21 +72,76 @@ export default function Dashboard() {
 
   const clearData = () => {
     handleSetTransactions([]);
+    handleSetCibilAnalysis(null);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      setCibilFile(event.target.files[0]);
+      const file = event.target.files[0];
+      if(file.type !== "application/pdf") {
+        toast({
+            title: "Invalid File Type",
+            description: "Please upload a PDF file.",
+            variant: "destructive",
+        });
+        setCibilFile(null);
+        if(event.target) {
+            event.target.value = "";
+        }
+        return;
+      }
+      setCibilFile(file);
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (cibilFile) {
-      // Handle file upload logic here
-      console.log("Uploading file:", cibilFile.name);
+        setIsUploading(true);
+        handleSetCibilAnalysis(null);
+
+        try {
+            const reader = new FileReader();
+            reader.readAsDataURL(cibilFile);
+            reader.onload = async () => {
+                const dataUri = reader.result as string;
+                try {
+                    const analysis = await analyzeCibilReport({ reportDataUri: dataUri });
+                    handleSetCibilAnalysis(analysis);
+                    toast({
+                        title: "Analysis Complete",
+                        description: "Your CIBIL report has been analyzed successfully.",
+                    });
+                } catch (error) {
+                    console.error("Failed to analyze CIBIL report:", error);
+                    toast({
+                        title: "Analysis Failed",
+                        description: "Could not analyze the CIBIL report. Please try again.",
+                        variant: "destructive",
+                    });
+                } finally {
+                    setIsUploading(false);
+                }
+            };
+            reader.onerror = (error) => {
+                console.error("Failed to read file:", error);
+                toast({
+                    title: "File Read Error",
+                    description: "There was an error reading your file. Please try again.",
+                    variant: "destructive",
+                });
+                setIsUploading(false);
+            };
+        } catch (error) {
+            console.error("File upload error:", error);
+            toast({
+                title: "Upload Error",
+                description: "An unexpected error occurred during file upload.",
+                variant: "destructive",
+            });
+            setIsUploading(false);
+        }
     }
   };
-
 
   if (isLoading) {
     return (
@@ -123,29 +202,51 @@ export default function Dashboard() {
                     <CardHeader>
                         <CardTitle className="font-headline">Upload CIBIL Report</CardTitle>
                         <CardDescription>
-                            Upload your CIBIL report to get insights on your credit score.
+                            Upload your CIBIL report (PDF) to get insights on your credit score.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center gap-2">
-                            <Input type="file" onChange={handleFileChange} className="w-full" />
+                            <Input type="file" onChange={handleFileChange} accept="application/pdf" className="w-full" disabled={isUploading}/>
                         </div>
                         {cibilFile && (
                             <div className="text-sm text-muted-foreground">
                                 Selected file: {cibilFile.name}
                             </div>
                         )}
-                        <Button onClick={handleUpload} className="w-full" disabled={!cibilFile}>
-                            <FileUp />
-                            <span>Upload Report</span>
+                        <Button onClick={handleUpload} className="w-full" disabled={!cibilFile || isUploading}>
+                            {isUploading ? <LoaderCircle className="animate-spin" /> : <FileUp />}
+                            <span>{isUploading ? "Analyzing..." : "Analyze Report"}</span>
                         </Button>
                     </CardContent>
                 </Card>
+                
+                {isUploading && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="font-headline">CIBIL Report Analysis</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                                <LoaderCircle className="animate-spin" />
+                                <p>Analyzing your report...</p>
+                            </div>
+                            <Skeleton className="h-20 w-full" />
+                            <Skeleton className="h-20 w-full" />
+                            <Skeleton className="h-20 w-full" />
+                        </CardContent>
+                    </Card>
+                )}
+                
+                {cibilAnalysis && !isUploading && (
+                    <CibilAnalysisCard analysis={cibilAnalysis} />
+                )}
+
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">Data Actions</CardTitle>
                         <CardDescription>
-                            Load sample data or clear all transactions.
+                            Load sample data or clear all transactions and analysis.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col sm:flex-row lg:flex-col gap-2">
