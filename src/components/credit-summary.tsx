@@ -164,14 +164,10 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     return;
                 }
                 const dpd = parseInt(String(dpdStr), 10);
-                if(isNaN(dpd)) {
-                    return
-                };
-
-                if (dpd === 0) {
+                if(isNaN(dpd) || dpd === 0) {
                      analysis.ontime++;
                      return;
-                }
+                };
 
                 if (dpd > 0 && dpd <= 30) analysis['1-30']++;
                 else if (dpd > 30 && dpd <= 60) analysis['31-60']++;
@@ -299,12 +295,10 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     const initiateChange = (index: number, updates: Partial<EnhancedAccountDetail>) => {
         const oldAccount = detailedAccounts[index];
         
-        // For status changes, we prompt for a comment.
         if (updates.status) {
             setActiveChange({ index, updates, oldAccount });
             setCommentDialogOpen(true);
         } else {
-            // For other changes, we apply them directly.
             applyChange(index, updates, oldAccount, null);
         }
     };
@@ -314,22 +308,22 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         newAccounts[index] = { ...oldAccount, ...updates };
         setDetailedAccounts(newAccounts);
     
-        // Track changes
         const changeLogs: string[] = [];
         const accountName = `'${oldAccount.accountType}'`;
+        const logPrefix = `(S.No. ${index + 1}):`;
     
         if (updates.isConsidered !== undefined && updates.isConsidered !== oldAccount.isConsidered) {
-            changeLogs.push(`${updates.isConsidered ? 'Included' : 'Excluded'} ${accountName} from calculations.`);
+            changeLogs.push(`${logPrefix} ${updates.isConsidered ? 'Included' : 'Excluded'} ${accountName} from calculations.`);
         }
         if (updates.status && updates.status !== oldAccount.status) {
-            let log = `Changed status of ${accountName} to '${updates.status}'.`;
+            let log = `${logPrefix} Changed status of ${accountName} to '${updates.status}'.`;
             if (commentText) {
                 log += ` Reason: ${commentText}`;
             }
             changeLogs.push(log);
         }
         if (updates.manualEmi !== undefined && updates.manualEmi !== (oldAccount.manualEmi ?? oldAccount.emi)) {
-            changeLogs.push(`Updated EMI for ${accountName} to ₹${(updates.manualEmi || 0).toLocaleString('en-IN')}.`);
+            changeLogs.push(`${logPrefix} Updated EMI for ${accountName} to ₹${(updates.manualEmi || 0).toLocaleString('en-IN')}.`);
         }
     
         if (changeLogs.length > 0) {
@@ -358,8 +352,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             useCORS: true,
             logging: true,
             onclone: (document) => {
-                 // Hide interactive elements in the clone
-                document.querySelectorAll('button, input, [role="switch"], [role="combobox"]').forEach(el => {
+                 document.querySelectorAll('button, input, [role="switch"], [role="combobox"]').forEach(el => {
                     const nonInteractiveEl = document.createElement('div');
                     nonInteractiveEl.innerHTML = (el as HTMLElement).innerText || (el as HTMLInputElement).value || '';
                     if (el.parentElement) {
@@ -515,6 +508,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">S.No.</TableHead>
                   <TableHead>Account Details</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Sanctioned</TableHead>
@@ -532,6 +526,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     return (
                         <React.Fragment key={acc.accountType + index}>
                             <TableRow className={!acc.isConsidered ? 'bg-muted/50' : ''}>
+                                <TableCell className="text-center">{index + 1}</TableCell>
                                 <TableCell className="font-medium">
                                     <div className="font-semibold">{acc.accountType}</div>
                                     <div className="text-xs text-muted-foreground mb-2">({acc.ownershipType})</div>
@@ -590,7 +585,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                 </TableCell>
                             </TableRow>
                             <TableRow className={!acc.isConsidered ? 'bg-muted/50' : ''}>
-                                <TableCell colSpan={6} className="p-2">
+                                <TableCell colSpan={7} className="p-2">
                                    <div className="flex gap-1 flex-wrap p-2 bg-background/50 rounded-md">
                                         <span className="text-xs font-semibold mr-2 flex items-center">Payment History:</span>
                                         {acc.paymentHistory.slice(0, 36).map((dpd, i) => (
