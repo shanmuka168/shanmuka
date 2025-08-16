@@ -40,24 +40,8 @@ const getStatusColor = (status: string) => {
     }
 };
 
-
-const PaymentHistoryIcon = ({ dpd }: { dpd: string }) => {
-    const isDelayed = !['0', 'STD', 'XXX'].includes(dpd.toUpperCase());
-    const displayValue = dpd.toUpperCase() === 'STD' ? '0' : dpd;
-
-    return (
-        <div className={cn(
-            "h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-white",
-            isDelayed ? "bg-red-500" : "bg-green-500"
-        )}>
-           {displayValue === 'XXX' ? 'X' : '✓'}
-        </div>
-    )
-};
-
-
 const DpdCircle = ({ value }: { value: string | number }) => {
-    const isDelayed = value !== 'STD' && value !== '000' && value !== 'XXX' && value !== 0;
+    const isDelayed = value !== 'STD' && value !== '000' && value !== 'XXX' && value !== 0 && value !== '0';
     
     let displayValue = value;
     if (value === 'STD' || value === '000') displayValue = '0';
@@ -116,17 +100,17 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         detailedAccounts.forEach(acc => {
             const history = acc.paymentHistory.slice(0, months);
             history.forEach(dpdStr => {
-                const dpd = parseInt(dpdStr);
-                if(isNaN(dpd)) {
-                    if (dpdStr === 'STD' || dpdStr === '0') analysis.ontime++;
+                if (dpdStr === 'STD' || dpdStr === '0' || dpdStr === '000') {
+                    analysis.ontime++;
                     return;
                 }
+                const dpd = parseInt(dpdStr);
+                if(isNaN(dpd)) return;
 
                 if (dpd > 0 && dpd <= 30) analysis['1-30']++;
                 else if (dpd > 30 && dpd <= 60) analysis['31-60']++;
                 else if (dpd > 60 && dpd <= 90) analysis['61-90']++;
                 else if (dpd > 90) analysis['90+']++;
-                else if (dpd === 0) analysis.ontime++;
             });
         });
         return analysis;
@@ -259,31 +243,35 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                   <TableHead className="text-right">Overdue</TableHead>
                   <TableHead className="text-right">EMI</TableHead>
                   <TableHead>Opened</TableHead>
-                  <TableHead>Payment History (Last 12 Months)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {detailedAccounts.map((acc, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{acc.accountType}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`border-none text-white ${getStatusColor(acc.status)}`}>
-                        {acc.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">₹{acc.sanctionedAmount.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-right">₹{acc.currentBalance.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-right text-red-500">₹{acc.overdueAmount.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-right">₹{(acc.emi || 0).toLocaleString('en-IN')}</TableCell>
-                    <TableCell>{acc.dateOpened}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1 flex-wrap">
-                        {acc.paymentHistory.slice(0, 12).map((dpd, i) => (
-                           <DpdCircle key={i} value={dpd} />
-                        ))}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <>
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{acc.accountType}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`border-none text-white ${getStatusColor(acc.status)}`}>
+                          {acc.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">₹{acc.sanctionedAmount.toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-right">₹{acc.currentBalance.toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-right text-red-500">₹{acc.overdueAmount.toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-right">₹{(acc.emi || 0).toLocaleString('en-IN')}</TableCell>
+                      <TableCell>{acc.dateOpened}</TableCell>
+                    </TableRow>
+                    <TableRow key={`${index}-history`}>
+                        <TableCell colSpan={7} className="p-2">
+                           <div className="flex gap-1 flex-wrap p-2 bg-muted rounded-md">
+                                <span className="text-xs font-semibold mr-2 flex items-center">Payment History (Last 12 months):</span>
+                                {acc.paymentHistory.slice(0, 12).map((dpd, i) => (
+                                <DpdCircle key={i} value={dpd} />
+                                ))}
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                  </>
                 ))}
               </TableBody>
             </Table>
