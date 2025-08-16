@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, InfoIcon } from 'lucide-react';
 import {
   ChartContainer,
   ChartTooltip,
@@ -27,6 +27,7 @@ import html2canvas from 'html2canvas';
 import { Switch } from './ui/switch';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 interface EnhancedAccountDetail extends AccountDetail {
   isConsidered: boolean;
@@ -98,6 +99,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         'Guarantor': null,
         'Joint': null,
     });
+     const [hasUserMadeChanges, setHasUserMadeChanges] = useState(false);
 
     const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status === 'Active' && acc.isConsidered), [detailedAccounts]);
 
@@ -279,6 +281,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     } as const;
 
     const handleAccountChange = (index: number, updates: Partial<EnhancedAccountDetail>) => {
+        setHasUserMadeChanges(true);
         const newAccounts = [...detailedAccounts];
         newAccounts[index] = { ...newAccounts[index], ...updates };
         setDetailedAccounts(newAccounts);
@@ -471,6 +474,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                 <TableCell className="font-medium">
                                     <div className="font-semibold">{acc.accountType}</div>
                                     <div className="text-xs text-muted-foreground mb-2">({acc.ownershipType})</div>
+                                    {acc.ownershipType !== 'Individual' && (
                                     <div className="flex items-center space-x-2">
                                         <Switch
                                             id={accId}
@@ -480,6 +484,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                         />
                                         <Label htmlFor={accId} className="text-xs text-muted-foreground">Consider</Label>
                                     </div>
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex flex-col gap-1">
@@ -541,6 +546,15 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
           </div>
         </CardContent>
       </Card>
+       {hasUserMadeChanges && (
+         <Alert>
+             <InfoIcon className="h-4 w-4" />
+             <AlertTitle>Dynamic Calculations</AlertTitle>
+             <AlertDescription>
+                You have made manual changes to the account data. The summary cards and analyses have been updated to reflect these changes.
+             </AlertDescription>
+         </Alert>
+        )}
     </div>
   );
 }
