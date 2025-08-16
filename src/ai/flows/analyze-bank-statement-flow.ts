@@ -23,22 +23,22 @@ export type AnalyzeBankStatementInput = z.infer<typeof AnalyzeBankStatementInput
 
 
 const TransactionSchema = z.object({
-    id: z.string().describe("A unique ID for the transaction."),
+    id: z.string().describe("A unique, randomly generated ID for the transaction (e.g., a UUID)."),
     date: z.string().describe("The date of the transaction in ISO 8601 format (YYYY-MM-DD)."),
-    description: z.string().describe("The transaction description."),
-    amount: z.number().describe("The transaction amount."),
-    type: z.enum(['income', 'expense']).describe("The type of transaction."),
-    category: z.string().describe("The category of the transaction (e.g., Groceries, Rent, Salary). Default to 'Uncategorized' if not obvious."),
+    description: z.string().describe("A concise but complete description of the transaction as it appears on the statement."),
+    amount: z.number().describe("The transaction amount as a positive number."),
+    type: z.enum(['income', 'expense']).describe("The type of transaction, either 'income' for credits or 'expense' for debits."),
+    category: z.string().describe("The category of the transaction (e.g., 'Groceries', 'Rent', 'Salary'). Default to 'Uncategorized' if the category is not obvious from the description."),
 });
 
 const BankStatementAnalysisSchema = z.object({
-    transactions: z.array(TransactionSchema).describe('A list of transactions extracted from the bank statement.'),
+    transactions: z.array(TransactionSchema).describe('A list of all transactions extracted from the bank statement.'),
     summary: z.object({
-        totalIncome: z.number().describe('The total income for the period.'),
-        totalExpenses: z.number().describe('The total expenses for the period.'),
-        netSavings: z.number().describe('The net savings (total income - total expenses).'),
-        startDate: z.string().describe("The start date of the statement period in ISO 8601 format."),
-        endDate: z.string().describe("The end date of the statement period in ISO 8601 format."),
+        totalIncome: z.number().describe('The sum of all income transactions.'),
+        totalExpenses: z.number().describe('The sum of all expense transactions.'),
+        netSavings: z.number().describe('The net savings, calculated as total income minus total expenses.'),
+        startDate: z.string().describe("The start date of the statement period in ISO 8601 format (YYYY-MM-DD)."),
+        endDate: z.string().describe("The end date of the statement period in ISO 8601 format (YYYY-MM-DD)."),
     })
 });
 export type BankStatementAnalysis = z.infer<typeof BankStatementAnalysisSchema>;
