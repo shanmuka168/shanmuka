@@ -121,7 +121,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     }, [detailedAccounts, activeAccounts]);
     
     const dpdAnalysis = useMemo(() => {
-        const months = parseInt(dpdFilter);
+        const months = dpdFilter === 'overall' ? 36 : parseInt(dpdFilter);
         const analysis = { '1-30': 0, '31-60': 0, '61-90': 0, '90+': 0, 'ontime': 0, 'total': 0 };
         activeAccounts.forEach(acc => {
             const history = acc.paymentHistory.slice(0, months);
@@ -165,7 +165,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                  return { month, dpd };
             });
 
-            paymentHistory.push({ accountType: acc.accountType, history });
+            paymentHistory.push({ accountType: acc.accountType, history: history.map(h => h.dpd) });
 
             history.forEach(({month, dpd}) => {
                 if (dpd === 'XXX') return;
@@ -202,7 +202,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     }, [activeAccounts]);
 
     useEffect(() => {
-        const months = parseInt(dpdFilter);
+        const months = dpdFilter === 'overall' ? 36 : parseInt(dpdFilter);
         const ownershipTypes: OwnershipType[] = ['Individual', 'Guarantor', 'Joint'];
         
         startAiSummaryTransition(() => {
@@ -305,6 +305,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                 <SelectItem value="12">Last 12 Months</SelectItem>
                                 <SelectItem value="18">Last 18 Months</SelectItem>
                                 <SelectItem value="24">Last 24 Months</SelectItem>
+                                <SelectItem value="overall">Overall</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
