@@ -340,7 +340,6 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                   <TableHead className="text-right">Outstanding</TableHead>
                   <TableHead className="text-right">Overdue</TableHead>
                   <TableHead className="text-right">EMI</TableHead>
-                  <TableHead>Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -352,18 +351,22 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                         <div className="text-xs text-muted-foreground">({acc.ownershipType})</div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`border-none text-white ${getStatusColor(acc.status)}`}>
-                          {acc.status}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                            <Badge variant="outline" className={`border-none text-white w-fit ${getStatusColor(acc.status)}`}>
+                                {acc.status}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                                {acc.status.toLowerCase() === 'closed' ? `Closed: ${acc.dateClosed}` : `Opened: ${acc.dateOpened}`}
+                            </span>
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">₹{acc.sanctionedAmount.toLocaleString('en-IN')}</TableCell>
                       <TableCell className="text-right">₹{acc.currentBalance.toLocaleString('en-IN')}</TableCell>
                       <TableCell className="text-right text-red-500">₹{acc.overdueAmount.toLocaleString('en-IN')}</TableCell>
                       <TableCell className="text-right">₹{(acc.emi || 0).toLocaleString('en-IN')}</TableCell>
-                      <TableCell>{acc.status.toLowerCase() === 'closed' ? acc.dateClosed : acc.dateOpened}</TableCell>
                     </TableRow>
                     <TableRow>
-                        <TableCell colSpan={7} className="p-2">
+                        <TableCell colSpan={6} className="p-2">
                            <div className="flex gap-1 flex-wrap p-2 bg-muted rounded-md">
                                 <span className="text-xs font-semibold mr-2 flex items-center">Payment History (Last 12 months):</span>
                                 {acc.paymentHistory.slice(0, 12).map((dpd, i) => (
