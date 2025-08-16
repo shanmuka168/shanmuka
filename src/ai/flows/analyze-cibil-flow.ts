@@ -29,6 +29,7 @@ const AccountDetailSchema = z.object({
     overdueAmount: z.number().describe("The overdue amount, if any."),
     emi: z.number().optional().describe("The Equated Monthly Installment (EMI), if applicable."),
     dateOpened: z.string().describe("The date the account was opened in DD-MM-YYYY format."),
+    dateClosed: z.string().optional().describe("The date the account was closed in DD-MM-YYYY format, if applicable."),
     paymentHistory: z.array(z.string()).describe("An array of strings representing the payment status. Use 'STD' or '0' for paid on time, '30' for 1-30 days past due, '60' for 31-60, '90' for 61-90, '90+' or a specific number like '120' for 90+ days, and 'XXX' for no data."),
 });
 
@@ -80,7 +81,7 @@ const prompt = ai.definePrompt({
   - Account Summary: Extract the total number of accounts, number of active accounts, total high credit/sanctioned amount, total current balance, total overdue amount, and total written-off amount. All values should be numbers.
   - Enquiry Summary: Extract the total number of enquiries, enquiries in the last 30 days, 12 months, and 24 months. Also, provide the date of the most recent enquiry.
   - Overall Summary: Write a concise, one-paragraph summary of the credit health based on the report.
-  - Detailed Accounts: Extract a detailed list of all individual credit accounts. For each account, provide the account type, ownership type, status, sanctioned amount, current balance, overdue amount, EMI, date opened, and payment history. For payment history, extract the actual DPD values like 'STD', '0', '30', '90', 'XXX' etc.
+  - Detailed Accounts: Extract a detailed list of all individual credit accounts. For each account, provide the account type, ownership type, status, sanctioned amount, current balance, overdue amount, EMI, date opened, date closed (if applicable), and payment history. For payment history, extract the actual DPD values like 'STD', '0', '30', '90', 'XXX' etc.
 
   Ensure all dates are in DD-MM-YYYY format. If a specific piece of information is not available in the report, use a reasonable default value (like 0 for numerical fields or "N/A" for strings) but try your best to find it.
 

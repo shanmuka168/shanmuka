@@ -340,7 +340,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                   <TableHead className="text-right">Outstanding</TableHead>
                   <TableHead className="text-right">Overdue</TableHead>
                   <TableHead className="text-right">EMI</TableHead>
-                  <TableHead>Opened</TableHead>
+                  <TableHead>Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -360,7 +360,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                       <TableCell className="text-right">₹{acc.currentBalance.toLocaleString('en-IN')}</TableCell>
                       <TableCell className="text-right text-red-500">₹{acc.overdueAmount.toLocaleString('en-IN')}</TableCell>
                       <TableCell className="text-right">₹{(acc.emi || 0).toLocaleString('en-IN')}</TableCell>
-                      <TableCell>{acc.dateOpened}</TableCell>
+                      <TableCell>{acc.status.toLowerCase() === 'closed' ? acc.dateClosed : acc.dateOpened}</TableCell>
                     </TableRow>
                     <TableRow>
                         <TableCell colSpan={7} className="p-2">
