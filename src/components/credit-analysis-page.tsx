@@ -3,36 +3,18 @@
 
 import { useState, useRef } from "react";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { FileUp, FileText, BarChart, FileSearch, PieChart, Info, LoaderCircle } from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { FileUp, FileText, LoaderCircle, CheckCircle, Info, BarChart, FileWarning, ShieldCheck, UserCog } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeCibilReport, CibilReportAnalysis } from "@/ai/flows/analyze-cibil-flow";
 import { CibilAnalysisCard } from "./cibil-analysis-card";
 
 
-function InfoCard({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="flex justify-between items-center text-sm">
-            <span className="text-muted-foreground">{label}</span>
-            <span className="font-semibold">{value}</span>
-        </div>
-    )
-}
-
-function SummaryCard({ title, value }: { title: string, value: string | number }) {
-    return (
-        <div className="border rounded-lg p-3 text-center">
-            <p className="text-xs text-muted-foreground">{title}</p>
-            <p className="text-lg font-bold">{value}</p>
-        </div>
-    )
-}
-
 export function CreditAnalysisPage() {
     const { toast } = useToast();
     const [analysis, setAnalysis] = useState<CibilReportAnalysis | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [fileName, setFileName] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,6 +32,7 @@ export function CreditAnalysisPage() {
 
         setIsLoading(true);
         setAnalysis(null);
+        setFileName(file.name);
 
         try {
             const reader = new FileReader();
@@ -61,6 +44,7 @@ export function CreditAnalysisPage() {
                  toast({
                     title: "Analysis Complete",
                     description: "Your CIBIL report has been analyzed.",
+                    variant: "default"
                 });
             };
         } catch (error) {
@@ -79,8 +63,14 @@ export function CreditAnalysisPage() {
         fileInputRef.current?.click();
     };
 
+    const handleChooseAnother = () => {
+        setAnalysis(null);
+        setFileName("");
+        fileInputRef.current?.click();
+    };
+
     return (
-        <div className="container mx-auto p-4 sm:p-6 space-y-6">
+        <div className="container mx-auto p-4 sm:p-6 space-y-6 bg-background/80">
             <div className="text-center">
                 <h1 className="text-3xl font-bold font-headline">Credit Analysis</h1>
                 <p className="text-muted-foreground">Upload your CIBIL report PDF to unlock instant AI-powered insights, personalized scoring, and actionable advice.</p>
@@ -102,25 +92,40 @@ export function CreditAnalysisPage() {
                         accept="application/pdf"
                         disabled={isLoading}
                     />
-                    <Button onClick={handleUploadClick} disabled={isLoading}>
-                        {isLoading ? (
-                            <>
-                                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                                Analyzing...
-                            </>
-                        ) : (
-                            <>
-                                <FileText className="mr-2 h-4 w-4" />
-                                Choose PDF File
-                            </>
-                        )}
-                    </Button>
+                    {!analysis && !isLoading && (
+                        <Button onClick={handleUploadClick}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            Choose PDF File
+                        </Button>
+                    )}
+                    {isLoading && (
+                         <div className="flex items-center gap-2 text-muted-foreground">
+                            <LoaderCircle className="h-5 w-5 animate-spin" />
+                            <span>Analyzing "{fileName}"... This may take a moment.</span>
+                        </div>
+                    )}
+                    {analysis && !isLoading && (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                                <div className="flex items-center gap-3">
+                                    <CheckCircle className="h-6 w-6 text-green-500"/>
+                                    <div>
+                                        <p className="font-semibold text-green-700">Analysis Complete!</p>
+                                        <p className="text-sm text-green-600">Your AI-powered insights are ready. Use the dashboard below to explore.</p>
+                                    </div>
+                                </div>
+                                <Button onClick={handleChooseAnother} variant="outline" size="sm">Choose Another File</Button>
+                            </div>
+                           
+                        </div>
+
+                    )}
                 </CardContent>
             </Card>
 
             {analysis ? (
                 <CibilAnalysisCard analysis={analysis} />
-            ) : !isLoading ? (
+            ) : !isLoading && (
                 <Card>
                      <CardHeader>
                         <div className="flex items-center gap-2">
@@ -130,16 +135,6 @@ export function CreditAnalysisPage() {
                     </CardHeader>
                      <CardContent>
                         <p className="text-muted-foreground">Upload your CIBIL report to get started.</p>
-                    </CardContent>
-                </Card>
-            ) : (
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Analyzing Report</CardTitle>
-                        <CardDescription>The AI is processing your CIBIL report. This may take a moment...</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex items-center justify-center p-8">
-                        <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
                     </CardContent>
                 </Card>
             )

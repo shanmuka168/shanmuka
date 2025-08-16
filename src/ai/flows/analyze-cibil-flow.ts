@@ -22,11 +22,30 @@ export type AnalyzeCibilReportInput = z.infer<typeof AnalyzeCibilReportInputSche
 
 const CibilReportAnalysisSchema = z.object({
     creditScore: z.number().describe('The CIBIL credit score.'),
-    paymentHistory: z.string().describe('A summary of the payment history.'),
-    creditUtilization: z.string().describe('Analysis of the credit utilization ratio.'),
-    creditMix: z.string().describe('Analysis of the credit mix (e.g., secured vs. unsecured loans).'),
-    inquiries: z.string().describe('Information about recent credit inquiries.'),
-    overallSummary: z.string().describe('An overall summary and recommendations for improvement.'),
+    consumerInformation: z.object({
+        name: z.string().describe("The consumer's full name."),
+        dateOfBirth: z.string().describe("The consumer's date of birth in DD-MM-YYYY format."),
+        gender: z.string().describe("The consumer's gender."),
+        pan: z.string().optional().describe("The consumer's PAN ID."),
+        mobileNumber: z.string().optional().describe("The consumer's mobile number."),
+        address: z.string().describe("The consumer's full address as mentioned in the report."),
+    }),
+    accountSummary: z.object({
+        totalAccounts: z.number().describe('Total number of all credit accounts (active and closed).'),
+        activeAccounts: z.number().describe('Number of currently active credit accounts.'),
+        highCreditOrSanctionedAmount: z.number().describe('The total high credit or sanctioned amount across all accounts.'),
+        currentBalance: z.number().describe('The total current balance across all accounts.'),
+        overdueAmount: z.number().describe('The total overdue amount across all accounts.'),
+        writtenOffAmount: z.number().describe('The total amount written off across all accounts.'),
+    }),
+    enquirySummary: z.object({
+        totalEnquiries: z.number().describe('Total number of all credit enquiries.'),
+        last30Days: z.number().describe('Number of enquiries made in the last 30 days.'),
+        last12Months: z.number().describe('Number of enquiries made in the last 12 months.'),
+        last24Months: z.number().describe('Number of enquiries made in the last 24 months.'),
+        mostRecentEnquiryDate: z.string().describe('The date of the most recent enquiry in DD-MM-YYYY format.'),
+    }),
+    overallSummary: z.string().describe('A concise, one-paragraph overall summary of the credit report, highlighting the most important positive and negative aspects.'),
 });
 export type CibilReportAnalysis = z.infer<typeof CibilReportAnalysisSchema>;
 
@@ -38,17 +57,18 @@ const prompt = ai.definePrompt({
   name: 'analyzeCibilReportPrompt',
   input: {schema: AnalyzeCibilReportInputSchema},
   output: {schema: CibilReportAnalysisSchema},
-  prompt: `You are an expert financial analyst specializing in credit reports. 
+  prompt: `You are an expert financial analyst specializing in Indian credit reports. 
   
-  Analyze the provided CIBIL report and extract the key information.
+  Analyze the provided CIBIL report PDF and extract all the specified information in the output schema.
   
-  Please provide a detailed analysis covering the following points:
-  - CIBIL Score
-  - Payment History: Summarize on-time payments, delays, and any defaults.
-  - Credit Utilization: Calculate or find the credit utilization ratio and comment on it.
-  - Credit Mix: Describe the mix of credit types (e.g., credit cards, auto loans, home loans).
-  - Credit Inquiries: Note the number of recent hard inquiries.
-  - Overall Summary: Provide a concluding summary of the credit health and suggest specific, actionable steps for improvement if necessary.
+  Please provide a detailed and accurate analysis covering the following points:
+  - CIBIL Score.
+  - Consumer Information: Extract the person's name, date of birth, gender, and full address.
+  - Account Summary: Extract the total number of accounts, number of active accounts, total high credit/sanctioned amount, total current balance, total overdue amount, and total written-off amount. All values should be numbers.
+  - Enquiry Summary: Extract the total number of enquiries, enquiries in the last 30 days, 12 months, and 24 months. Also, provide the date of the most recent enquiry.
+  - Overall Summary: Write a concise, one-paragraph summary of the credit health based on the report.
+
+  Ensure all dates are in DD-MM-YYYY format. If a specific piece of information is not available in the report, use a reasonable default value (like 0 for numerical fields or "N/A" for strings) but try your best to find it.
 
   Report: {{media url=reportDataUri}}`,
 });

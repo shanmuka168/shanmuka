@@ -7,98 +7,155 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { Button } from "./ui/button";
+import { BarChart, FileWarning, ShieldCheck, UserCog, User, Calendar, VenetianMask, FileText, Banknote, Clock, AlertCircle, TrendingUp, TrendingDown, Wallet, BookUser, Hash } from "lucide-react";
+
 import { CibilReportAnalysis } from "@/ai/flows/analyze-cibil-flow";
-import { CheckCircle, Info, TrendingUp, AlertTriangle, Gauge } from "lucide-react";
+import { Progress } from "./ui/progress";
 
 interface CibilAnalysisCardProps {
   analysis: CibilReportAnalysis;
 }
 
+function InfoItem({ icon: Icon, label, value }: { icon: React.ElementType, label: string; value: string | number | undefined }) {
+    if (!value) return null;
+    return (
+        <div className="flex items-start gap-3">
+            <Icon className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-1" />
+            <div>
+                <p className="text-sm text-muted-foreground">{label}</p>
+                <p className="font-semibold text-sm">{value}</p>
+            </div>
+        </div>
+    )
+}
+
+function SummaryCard({ label, value, icon: Icon, color }: { label: string; value: string | number, icon: React.ElementType, color?: string }) {
+    return (
+        <div className="p-3 bg-background rounded-lg border flex-1 min-w-[120px]">
+            <div className="flex items-center gap-2 mb-1">
+                 <Icon className={`h-4 w-4 ${color || 'text-muted-foreground'}`}/>
+                <p className="text-xs text-muted-foreground">{label}</p>
+            </div>
+            <p className="text-lg font-bold text-foreground">{value}</p>
+        </div>
+    )
+}
+
 const getScoreColor = (score: number) => {
-    if (score >= 750) return "text-green-500";
-    if (score >= 700) return "text-yellow-500";
-    if (score >= 650) return "text-orange-500";
-    return "text-red-500";
+    if (score >= 750) return "bg-green-500";
+    if (score >= 700) return "bg-yellow-500";
+    if (score >= 650) return "bg-orange-500";
+    return "bg-red-500";
 }
 
 export function CibilAnalysisCard({ analysis }: CibilAnalysisCardProps) {
+  const { creditScore, consumerInformation, accountSummary, enquirySummary, overallSummary } = analysis;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-headline">CIBIL Report Analysis</CardTitle>
-        <CardDescription>
-          An AI-powered summary of your credit report.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="text-center pb-4 border-b">
-            <p className="text-sm text-muted-foreground">Credit Score</p>
-            <p className={`text-6xl font-bold ${getScoreColor(analysis.creditScore)}`}>{analysis.creditScore}</p>
-        </div>
-        <Accordion type="single" collapsible defaultValue="item-1">
-          <AccordionItem value="item-1">
-            <AccordionTrigger>
-                <div className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Overall Summary
+    <div className="space-y-6">
+       <Card>
+            <CardHeader>
+                 <div className="flex items-center gap-2">
+                    <User className="h-5 w-5 text-primary"/>
+                    <CardTitle className="text-base font-semibold">Credit Score & Consumer Information</CardTitle>
                 </div>
-            </AccordionTrigger>
-            <AccordionContent>
-                {analysis.overallSummary}
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="item-2">
-            <AccordionTrigger>
-                <div className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5" />
-                    Payment History
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-3 gap-6">
+                <div className="md:col-span-1 flex flex-col items-center justify-center text-center p-6 bg-card-foreground/5 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Official CIBIL Score</p>
+                    <p className="text-6xl font-bold font-headline text-primary">{creditScore}</p>
+                    <div className="w-full mt-2">
+                        <Progress value={creditScore} max={900} className={`h-2 [&>div]:${getScoreColor(creditScore)}`} />
+                         <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                            <span>300</span>
+                            <span>900</span>
+                        </div>
+                    </div>
                 </div>
-            </AccordionTrigger>
-            <AccordionContent>
-                {analysis.paymentHistory}
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="item-3">
-            <AccordionTrigger>
-                <div className="flex items-center gap-2">
-                    <Gauge className="h-5 w-5" />
-                    Credit Utilization
+                <div className="md:col-span-2 grid grid-cols-2 gap-x-6 gap-y-4 p-4">
+                    <h3 className="col-span-2 text-sm font-semibold text-muted-foreground border-b pb-2">AI-Extracted Consumer Information</h3>
+                    <InfoItem icon={User} label="Name" value={consumerInformation.name} />
+                    <InfoItem icon={Calendar} label="Date of Birth" value={consumerInformation.dateOfBirth} />
+                    <InfoItem icon={VenetianMask} label="Gender" value={consumerInformation.gender} />
+                    <InfoItem icon={Hash} label="PAN" value={consumerInformation.pan} />
+                    <InfoItem icon={Wallet} label="Address" value={consumerInformation.address} />
                 </div>
-            </AccordionTrigger>
-            <AccordionContent>
-                {analysis.creditUtilization}
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="item-4">
-            <AccordionTrigger>
+            </CardContent>
+        </Card>
+      
+        <Card>
+            <CardHeader>
                 <div className="flex items-center gap-2">
-                    <Info className="h-5 w-5" />
-                    Credit Mix
+                    <FileText className="h-5 w-5 text-primary"/>
+                    <CardTitle className="text-base font-semibold">Report Summary</CardTitle>
                 </div>
-            </AccordionTrigger>
-            <AccordionContent>
-                {analysis.creditMix}
-            </AccordionContent>
-          </AccordionItem>
-           <AccordionItem value="item-5">
-            <AccordionTrigger>
+                <CardDescription>This summary is generated by an AI analyzing your CIBIL report.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div>
+                    <h3 className="font-semibold mb-3">Account Summary</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <SummaryCard label="Total Accounts" value={accountSummary.totalAccounts} icon={BookUser} />
+                        <SummaryCard label="Active Accounts" value={accountSummary.activeAccounts} icon={TrendingUp} color="text-green-500" />
+                        <SummaryCard label="High Credit/Sanctioned" value={`₹${accountSummary.highCreditOrSanctionedAmount.toLocaleString('en-IN')}`} icon={Banknote} />
+                        <SummaryCard label="Current Balance" value={`₹${accountSummary.currentBalance.toLocaleString('en-IN')}`} icon={Wallet} color="text-red-500" />
+                        <SummaryCard label="Overdue Amount" value={`₹${accountSummary.overdueAmount.toLocaleString('en-IN')}`} icon={AlertCircle} color="text-orange-500"/>
+                        <SummaryCard label="Written-Off" value={accountSummary.writtenOffAmount} icon={TrendingDown} />
+                    </div>
+                </div>
+                 <div>
+                    <h3 className="font-semibold mb-3">Enquiry Summary</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <SummaryCard label="Total Enquiries" value={enquirySummary.totalEnquiries} icon={BookUser} />
+                        <SummaryCard label="Last 30 Days" value={enquirySummary.last30Days} icon={Clock} />
+                        <SummaryCard label="Last 12 Months" value={enquirySummary.last12Months} icon={Clock} />
+                        <SummaryCard label="Last 24 Months" value={enquirySummary.last24Months} icon={Clock} />
+                        <SummaryCard label="Most Recent Enquiry" value={enquirySummary.mostRecentEnquiryDate} icon={Calendar} />
+                    </div>
+                </div>
+                 <div>
+                    <Accordion type="single" collapsible>
+                        <AccordionItem value="item-1">
+                            <AccordionTrigger>
+                                <div className="flex items-center gap-2 font-semibold">
+                                    Overall AI Summary
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <p className="text-sm text-muted-foreground leading-relaxed">{overallSummary}</p>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
                 <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5" />
-                    Credit Inquiries
+                    <BarChart className="h-5 w-5 text-primary"/>
+                    <CardTitle className="text-base font-semibold">Analysis Dashboard</CardTitle>
                 </div>
-            </AccordionTrigger>
-            <AccordionContent>
-                {analysis.inquiries}
-            </AccordionContent>
-          </AccordionItem>
+                <CardDescription>Select a section to view its detailed analysis. Some sections require previous steps to be completed.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Button variant="outline" className="flex-col h-20"><BarChart className="h-6 w-6 mb-1"/> Credit Summary</Button>
+                <Button variant="outline" className="flex-col h-20"><FileWarning className="h-6 w-6 mb-1"/> AI Risk Assessment</Button>
+                <Button variant="outline" className="flex-col h-20"><UserCog className="h-6 w-6 mb-1"/> AI Credit Mentor</Button>
+                <Button variant="outline" className="flex-col h-20"><ShieldCheck className="h-6 w-6 mb-1"/> Financials</Button>
+            </CardContent>
+        </Card>
+
+        <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="item-1">
+                <AccordionTrigger>Raw Report Text & Cost</AccordionTrigger>
+                <AccordionContent>
+                <p className="text-sm text-muted-foreground">This section is under construction.</p>
+                </AccordionContent>
+            </AccordionItem>
         </Accordion>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
