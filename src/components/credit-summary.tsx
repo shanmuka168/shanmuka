@@ -153,7 +153,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     const dpdAnalysis = useMemo(() => {
         const months = dpdFilter === 'overall' ? 36 : parseInt(dpdFilter);
         const analysis = { '1-30': 0, '31-60': 0, '61-90': 0, '90+': 0, 'ontime': 0, 'total': 0 };
-        activeAccounts.forEach(acc => {
+        detailedAccounts.forEach(acc => {
             const history = acc.paymentHistory.slice(0, months);
             history.forEach(dpdStr => {
                 if (dpdStr === 'XXX') return;
@@ -180,7 +180,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             });
         });
         return analysis;
-    }, [activeAccounts, dpdFilter]);
+    }, [detailedAccounts, dpdFilter]);
 
     const calculateBehaviorAnalysis = useCallback((ownershipType: OwnershipType, months: number): BehaviorAnalysisData | null => {
         const accounts = activeAccounts.filter(acc => acc.ownershipType === ownershipType);
@@ -190,6 +190,9 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
 
         const paymentHistory: SummarizePaymentBehaviorInput['paymentHistory'] = [];
         const trendMap = new Map<string, { month: string, onTime: number, late: number }>();
+
+        let totalPayments = 0;
+        let onTimePayments = 0;
 
         accounts.forEach(acc => {
             const history = acc.paymentHistory.slice(0, months).map((dpd, i) => {
@@ -204,6 +207,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             history.forEach(({month, dpd}) => {
                 if (dpd === 'XXX') return;
 
+                 totalPayments++;
                 if (!trendMap.has(month)) {
                     trendMap.set(month, { month, onTime: 0, late: 0 });
                 }
@@ -212,6 +216,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                 const dpdNum = parseInt(String(dpd).replace(/STD|000/g, '0'));
                 if (isNaN(dpdNum) || dpdNum === 0) {
                     trend.onTime++;
+                    onTimePayments++;
                 } else {
                     trend.late++;
                 }
@@ -219,9 +224,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         });
 
         const paymentTrend = Array.from(trendMap.values()).reverse();
-        const onTimePayments = paymentTrend.reduce((sum, p) => sum + p.onTime, 0);
-        const latePayments = paymentTrend.reduce((sum, p) => sum + p.late, 0);
-        const totalPayments = onTimePayments + latePayments;
+        const latePayments = totalPayments - onTimePayments;
         const onTimePercentage = totalPayments > 0 ? (onTimePayments / totalPayments) * 100 : 100;
 
         let rating: BehaviorAnalysisData['rating'] = 'No Data';
@@ -300,7 +303,8 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             setActiveChange({ index, updates, oldAccount });
             setCommentDialogOpen(true);
         } else {
-            applyChange(index, updates, oldAccount, null);
+            // This path is unlikely to be taken now, but kept for safety.
+            // applyChange(index, updates, oldAccount, null);
         }
     };
     
@@ -438,7 +442,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <div>
-                            <CardTitle>DPD Analysis (Active Accounts)</CardTitle>
+                            <CardTitle>DPD Analysis</CardTitle>
                             <CardDescription>Days Past Due breakdown over the selected period.</CardDescription>
                         </div>
                          <Select value={dpdFilter} onValueChange={setDpdFilter}>
