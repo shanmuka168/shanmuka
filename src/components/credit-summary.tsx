@@ -156,20 +156,25 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         activeAccounts.forEach(acc => {
             const history = acc.paymentHistory.slice(0, months);
             history.forEach(dpdStr => {
-                if (dpdStr === 'XXX') return; // Ignore months with no data
+                if (dpdStr === 'XXX') return;
                 analysis.total++;
 
-                const dpdNum = parseInt(String(dpdStr).replace(/STD|000/g, '0'), 10);
+                let dpdNum;
+                if (dpdStr === 'STD' || dpdStr === '000') {
+                    dpdNum = 0;
+                } else {
+                    dpdNum = parseInt(dpdStr, 10);
+                }
 
                 if (isNaN(dpdNum) || dpdNum === 0) {
                     analysis.ontime++;
-                } else if (dpdNum > 0 && dpdNum <= 30) {
+                } else if (dpdNum <= 30) {
                     analysis['1-30']++;
-                } else if (dpdNum > 30 && dpdNum <= 60) {
+                } else if (dpdNum <= 60) {
                     analysis['31-60']++;
-                } else if (dpdNum > 60 && dpdNum <= 90) {
+                } else if (dpdNum <= 90) {
                     analysis['61-90']++;
-                } else if (dpdNum > 90) {
+                } else {
                     analysis['90+']++;
                 }
             });
@@ -669,3 +674,5 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </>
   );
 }
+
+    
