@@ -113,14 +113,14 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     const [activeChange, setActiveChange] = useState<{index: number, updates: Partial<EnhancedAccountDetail>, oldAccount: EnhancedAccountDetail} | null>(null);
     const [comment, setComment] = useState("");
 
-    const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status === 'Active'), [detailedAccounts]);
+    const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status.toLowerCase() === 'active'), [detailedAccounts]);
 
     const summaryData = useMemo(() => {
         const consideredAccounts = detailedAccounts.filter(acc => acc.isConsidered);
         const totalSanctioned = consideredAccounts.reduce((sum, acc) => sum + acc.sanctionedAmount, 0);
         const totalOutstanding = consideredAccounts.reduce((sum, acc) => sum + acc.currentBalance, 0);
         const totalEmi = consideredAccounts.reduce((sum, acc) => {
-            if (acc.status !== 'Active') return sum;
+            if (acc.status.toLowerCase() !== 'active') return sum;
             return sum + (acc.manualEmi ?? acc.emi || 0);
         }, 0);
 
