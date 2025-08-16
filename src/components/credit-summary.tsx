@@ -156,23 +156,22 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         activeAccounts.forEach(acc => {
             const history = acc.paymentHistory.slice(0, months);
             history.forEach(dpdStr => {
-                 if (dpdStr === 'XXX') return;
-                 analysis.total++;
+                if (dpdStr === 'XXX') return; // Ignore months with no data
+                analysis.total++;
 
-                if (dpdStr === 'STD' || dpdStr === '0' || dpdStr === '000') {
+                const dpdNum = parseInt(String(dpdStr).replace('STD', '0'), 10);
+
+                if (isNaN(dpdNum) || dpdNum === 0) {
                     analysis.ontime++;
-                    return;
+                } else if (dpdNum > 0 && dpdNum <= 30) {
+                    analysis['1-30']++;
+                } else if (dpdNum > 30 && dpdNum <= 60) {
+                    analysis['31-60']++;
+                } else if (dpdNum > 60 && dpdNum <= 90) {
+                    analysis['61-90']++;
+                } else if (dpdNum > 90) {
+                    analysis['90+']++;
                 }
-                const dpd = parseInt(String(dpdStr), 10);
-                if(isNaN(dpd) || dpd === 0) {
-                     analysis.ontime++;
-                     return;
-                };
-
-                if (dpd > 0 && dpd <= 30) analysis['1-30']++;
-                else if (dpd > 30 && dpd <= 60) analysis['31-60']++;
-                else if (dpd > 60 && dpd <= 90) analysis['61-90']++;
-                else if (dpd > 90) analysis['90+']++;
             });
         });
         return analysis;
