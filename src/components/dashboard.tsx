@@ -8,7 +8,7 @@ import { SummaryCards } from "./summary-cards";
 import { TransactionsTable } from "./transactions-table";
 import { SpendingCharts } from "./spending-charts";
 import { Button } from "./ui/button";
-import { Upload, Trash2, FileUp, LoaderCircle } from "lucide-react";
+import { Upload, Trash2, FileCheck, LoaderCircle, FileScan } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { Input } from "./ui/input";
@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [cibilFile, setCibilFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [cibilAnalysis, setCibilAnalysis] = useState<CibilReportAnalysis | null>(null);
+  const [statementFile, setStatementFile] = useState<File | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -75,7 +76,7 @@ export default function Dashboard() {
     handleSetCibilAnalysis(null);
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCibilFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       const file = event.target.files[0];
       if(file.type !== "application/pdf") {
@@ -93,8 +94,34 @@ export default function Dashboard() {
       setCibilFile(file);
     }
   };
+  
+  const handleStatementFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+     if (event.target.files) {
+      const file = event.target.files[0];
+       if(file.type !== "application/pdf") {
+        toast({
+            title: "Invalid File Type",
+            description: "Please upload a PDF file.",
+            variant: "destructive",
+        });
+        setStatementFile(null);
+        if(event.target) {
+            event.target.value = "";
+        }
+        return;
+      }
+      setStatementFile(file);
+    }
+  }
+  
+  const handleStatementUpload = async () => {
+    toast({
+        title: "Coming Soon!",
+        description: "Bank statement processing is not yet implemented.",
+    });
+  }
 
-  const handleUpload = async () => {
+  const handleCibilUpload = async () => {
     if (cibilFile) {
         setIsUploading(true);
         handleSetCibilAnalysis(null);
@@ -207,16 +234,39 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center gap-2">
-                            <Input type="file" onChange={handleFileChange} accept="application/pdf" className="w-full" disabled={isUploading}/>
+                            <Input type="file" onChange={handleCibilFileChange} accept="application/pdf" className="w-full" disabled={isUploading}/>
                         </div>
                         {cibilFile && (
                             <div className="text-sm text-muted-foreground">
                                 Selected file: {cibilFile.name}
                             </div>
                         )}
-                        <Button onClick={handleUpload} className="w-full" disabled={!cibilFile || isUploading}>
-                            {isUploading ? <LoaderCircle className="animate-spin" /> : <FileUp />}
+                        <Button onClick={handleCibilUpload} className="w-full" disabled={!cibilFile || isUploading}>
+                            {isUploading ? <LoaderCircle className="animate-spin" /> : <FileCheck />}
                             <span>{isUploading ? "Analyzing..." : "Analyze Report"}</span>
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="font-headline">Upload Bank Statement</CardTitle>
+                        <CardDescription>
+                            Upload your bank statement (PDF) to extract transactions.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center gap-2">
+                            <Input type="file" onChange={handleStatementFileChange} accept="application/pdf" className="w-full" />
+                        </div>
+                        {statementFile && (
+                            <div className="text-sm text-muted-foreground">
+                                Selected file: {statementFile.name}
+                            </div>
+                        )}
+                        <Button onClick={handleStatementUpload} className="w-full" disabled={!statementFile}>
+                            <FileScan />
+                            <span>Process Statement</span>
                         </Button>
                     </CardContent>
                 </Card>
