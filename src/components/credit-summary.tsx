@@ -137,7 +137,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     analysis.ontime++;
                     return;
                 }
-                const dpd = parseInt(dpdStr);
+                const dpd = parseInt(String(dpdStr));
                 if(isNaN(dpd)) return;
 
                 if (dpd > 0 && dpd <= 30) analysis['1-30']++;
@@ -397,4 +397,5 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </div>
   );
 }
+
 
