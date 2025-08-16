@@ -42,17 +42,29 @@ const getStatusColor = (status: string) => {
 };
 
 const DpdCircle = ({ value }: { value: string | number }) => {
-    const isDelayed = value !== 'STD' && value !== '000' && value !== 'XXX' && value !== 0 && value !== '0';
-    
     let displayValue = value;
     if (value === 'STD' || value === '000') displayValue = '0';
     if (value === 'XXX') displayValue = 'X';
 
+    const getDpdColor = (dpdStr: string | number) => {
+        if (dpdStr === 'STD' || dpdStr === '0' || dpdStr === '000' || dpdStr === 0) {
+            return 'bg-green-500';
+        }
+        if (dpdStr === 'XXX') return 'bg-gray-400';
+        
+        const dpd = parseInt(String(dpdStr));
+        if (isNaN(dpd)) return 'bg-gray-400';
 
+        if (dpd > 0 && dpd <= 30) return 'bg-yellow-500';
+        if (dpd > 30 && dpd <= 60) return 'bg-orange-500';
+        if (dpd > 60 && dpd <= 90) return 'bg-red-500';
+        if (dpd > 90) return 'bg-red-700';
+
+        return 'bg-green-500'; // Default for 0
+    };
+    
     return (
-        <div title={`DPD: ${value}`} className={cn("w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-mono",
-            isDelayed ? 'bg-red-500' : 'bg-green-500'
-        )}>
+        <div title={`DPD: ${value}`} className={cn("w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-mono", getDpdColor(value))}>
             <span className="scale-75">{displayValue}</span>
         </div>
     )
@@ -367,7 +379,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     </TableRow>
                     <TableRow>
                         <TableCell colSpan={6} className="p-2">
-                           <div className="flex gap-1 flex-wrap p-2 bg-muted rounded-md">
+                           <div className="flex gap-1 flex-wrap p-2 bg-muted/50 rounded-md">
                                 <span className="text-xs font-semibold mr-2 flex items-center">Payment History (Last 12 months):</span>
                                 {acc.paymentHistory.slice(0, 12).map((dpd, i) => (
                                 <DpdCircle key={i} value={dpd} />
@@ -385,3 +397,4 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </div>
   );
 }
+
