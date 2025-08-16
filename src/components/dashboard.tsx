@@ -13,9 +13,8 @@ import { Upload, Trash2, LogOut } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { analyzeCibilReport, CibilReportAnalysis } from "@/ai/flows/analyze-cibil-flow";
+import { CibilReportAnalysis } from "@/ai/flows/analyze-cibil-flow";
 import { AnalysisTabs } from "./analysis-tabs";
-import { BankStatementAnalysis, analyzeBankStatement } from "@/ai/flows/analyze-bank-statement-flow";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -27,11 +26,6 @@ const CIBIL_ANALYSIS_KEY = "finsight-cibil-analysis";
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [cibilFile, setCibilFile] = useState<File | null>(null);
-  const [isCibilUploading, setIsCibilUploading] = useState(false);
-  const [cibilAnalysis, setCibilAnalysis] = useState<CibilReportAnalysis | null>(null);
-  const [statementFile, setStatementFile] = useState<File | null>(null);
-  const [isStatementProcessing, setIsStatementProcessing] = useState(false);
   
   const { toast } = useToast();
   const router = useRouter();
@@ -41,10 +35,6 @@ export default function Dashboard() {
       const storedTransactions = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedTransactions) {
         setTransactions(JSON.parse(storedTransactions));
-      }
-      const storedCibilAnalysis = localStorage.getItem(CIBIL_ANALYSIS_KEY);
-      if (storedCibilAnalysis) {
-        setCibilAnalysis(JSON.parse(storedCibilAnalysis));
       }
     } catch (error) {
       console.error("Failed to load data from local storage", error);
@@ -65,7 +55,6 @@ export default function Dashboard() {
 
   const handleSetCibilAnalysis = (analysis: CibilReportAnalysis | null) => {
     try {
-        setCibilAnalysis(analysis);
         if (analysis) {
             localStorage.setItem(CIBIL_ANALYSIS_KEY, JSON.stringify(analysis));
         } else {
@@ -88,142 +77,6 @@ export default function Dashboard() {
   const handleLogout = async () => {
     await signOut(auth);
     router.push("/login");
-  };
-
-  const handleCibilFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      const file = event.target.files[0];
-      if(file.type !== "application/pdf") {
-        toast({
-            title: "Invalid File Type",
-            description: "Please upload a PDF file.",
-            variant: "destructive",
-        });
-        setCibilFile(null);
-        if(event.target) {
-            event.target.value = "";
-        }
-        return;
-      }
-      setCibilFile(file);
-    }
-  };
-  
-  const handleStatementFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-     if (event.target.files) {
-      const file = event.target.files[0];
-       if(file.type !== "application/pdf") {
-        toast({
-            title: "Invalid File Type",
-            description: "Please upload a PDF file.",
-            variant: "destructive",
-        });
-        setStatementFile(null);
-        if(event.target) {
-            event.target.value = "";
-        }
-        return;
-      }
-      setStatementFile(file);
-    }
-  }
-  
-  const handleStatementUpload = async () => {
-    if (statementFile) {
-        setIsStatementProcessing(true);
-        try {
-            const reader = new FileReader();
-            reader.readAsDataURL(statementFile);
-            reader.onload = async () => {
-                const dataUri = reader.result as string;
-                try {
-                    const analysis: BankStatementAnalysis = await analyzeBankStatement({ statementDataUri: dataUri });
-                    handleSetTransactions([...transactions, ...analysis.transactions]);
-                    toast({
-                        title: "Processing Complete",
-                        description: `Extracted ${analysis.transactions.length} transactions from your bank statement.`,
-                    });
-                } catch (error) {
-                    console.error("Failed to analyze bank statement:", error);
-                    toast({
-                        title: "Analysis Failed",
-                        description: "Could not process the bank statement. Please try again.",
-                        variant: "destructive",
-                    });
-                } finally {
-                    setIsStatementProcessing(false);
-                    setStatementFile(null);
-                }
-            };
-            reader.onerror = (error) => {
-                console.error("Failed to read file:", error);
-                toast({
-                    title: "File Read Error",
-                    description: "There was an error reading your file. Please try again.",
-                    variant: "destructive",
-                });
-                setIsStatementProcessing(false);
-            };
-        } catch (error) {
-             console.error("File upload error:", error);
-            toast({
-                title: "Upload Error",
-                description: "An unexpected error occurred during file upload.",
-                variant: "destructive",
-            });
-            setIsStatementProcessing(false);
-        }
-    }
-  }
-
-  const handleCibilUpload = async () => {
-    if (cibilFile) {
-        setIsCibilUploading(true);
-        handleSetCibilAnalysis(null);
-
-        try {
-            const reader = new FileReader();
-            reader.readAsDataURL(cibilFile);
-            reader.onload = async () => {
-                const dataUri = reader.result as string;
-                try {
-                    const analysis = await analyzeCibilReport({ reportDataUri: dataUri });
-                    handleSetCibilAnalysis(analysis);
-                    toast({
-                        title: "Analysis Complete",
-                        description: "Your CIBIL report has been analyzed successfully.",
-                    });
-                } catch (error) {
-                    console.error("Failed to analyze CIBIL report:", error);
-                    toast({
-                        title: "Analysis Failed",
-                        description: "Could not analyze the CIBIL report. Please try again.",
-                        variant: "destructive",
-                    });
-                } finally {
-                    setIsCibilUploading(false);
-                    setCibilFile(null);
-                }
-            };
-            reader.onerror = (error) => {
-                console.error("Failed to read file:", error);
-                toast({
-                    title: "File Read Error",
-                    description: "There was an error reading your file. Please try again.",
-                    variant: "destructive",
-                });
-                setIsCibilUploading(false);
-            };
-        } catch (error) {
-            console.error("File upload error:", error);
-            toast({
-                title: "Upload Error",
-                description: "An unexpected error occurred during file upload.",
-                variant: "destructive",
-            });
-            setIsCibilUploading(false);
-        }
-    }
   };
 
   if (isLoading) {
@@ -288,17 +141,7 @@ export default function Dashboard() {
             </div>
             <div className="lg:col-span-1 space-y-6">
                 
-                <AnalysisTabs
-                    cibilFile={cibilFile}
-                    handleCibilFileChange={handleCibilFileChange}
-                    isCibilUploading={isCibilUploading}
-                    handleCibilUpload={handleCibilUpload}
-                    cibilAnalysis={cibilAnalysis}
-                    statementFile={statementFile}
-                    handleStatementFileChange={handleStatementFileChange}
-                    isStatementProcessing={isStatementProcessing}
-                    handleStatementUpload={handleStatementUpload}
-                />
+                <AnalysisTabs />
                 
                 <Card>
                     <CardHeader>
