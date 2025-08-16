@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,15 +9,17 @@ import { SummaryCards } from "./summary-cards";
 import { TransactionsTable } from "./transactions-table";
 import { SpendingCharts } from "./spending-charts";
 import { Button } from "./ui/button";
-import { Upload, Trash2, FileCheck, LoaderCircle, FileScan } from "lucide-react";
+import { Upload, Trash2, LogOut } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
-import { Input } from "./ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeCibilReport, CibilReportAnalysis } from "@/ai/flows/analyze-cibil-flow";
-import { CibilAnalysisCard } from "./cibil-analysis-card";
 import { AnalysisTabs } from "./analysis-tabs";
 import { BankStatementAnalysis, analyzeBankStatement } from "@/ai/flows/analyze-bank-statement-flow";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
+
 
 const LOCAL_STORAGE_KEY = "finsight-transactions";
 const CIBIL_ANALYSIS_KEY = "finsight-cibil-analysis";
@@ -31,6 +34,7 @@ export default function Dashboard() {
   const [isStatementProcessing, setIsStatementProcessing] = useState(false);
   
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     try {
@@ -79,6 +83,11 @@ export default function Dashboard() {
   const clearData = () => {
     handleSetTransactions([]);
     handleSetCibilAnalysis(null);
+  };
+  
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/login");
   };
 
   const handleCibilFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -251,6 +260,12 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold font-headline tracking-tight">
                 FinSight Analyzer
             </h1>
+        </div>
+        <div className="ml-auto">
+            <Button onClick={handleLogout} variant="outline">
+                <LogOut />
+                <span>Logout</span>
+            </Button>
         </div>
       </header>
       <main className="flex-1 p-4 md:p-6 space-y-6">
