@@ -1,14 +1,13 @@
 
 "use client";
 
-import * as React from "react";
-import { useState, useMemo, useTransition, useEffect, useCallback } from 'react';
-import type { CibilReportAnalysis } from '@/ai/flows/analyze-cibil-flow';
+import React, { useState, useMemo, useTransition, useEffect, useCallback, useRef } from 'react';
+import type { CibilReportAnalysis, AccountDetail } from '@/ai/flows/analyze-cibil-flow';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import {
   ChartContainer,
   ChartTooltip,
@@ -21,8 +20,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { BehaviorAnalysisCard, BehaviorAnalysisData } from "./behavior-analysis-card";
-import { summarizePaymentBehavior, SummarizePaymentBehaviorInput, SummarizePaymentBehaviorOutput } from "@/ai/flows/summarize-payment-behavior";
+import { summarizePaymentBehavior, SummarizePaymentBehaviorInput } from "@/ai/flows/summarize-payment-behavior";
 import { useToast } from "@/hooks/use-toast";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface CreditSummaryProps {
   analysis: CibilReportAnalysis;
@@ -78,9 +79,10 @@ type OwnershipType = 'Individual' | 'Guarantor' | 'Joint';
 
 export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     const { toast } = useToast();
+    const [detailedAccounts, setDetailedAccounts] = useState<AccountDetail[]>(analysis.detailedAccounts);
     const [dpdFilter, setDpdFilter] = useState('12');
-    const { detailedAccounts } = analysis;
     const [isAiSummaryLoading, startAiSummaryTransition] = useTransition();
+    const summaryRef = useRef<HTMLDivElement>(null);
 
     const [behaviorAnalyses, setBehaviorAnalyses] = useState<Record<OwnershipType, BehaviorAnalysisData | null>>({
         'Individual': null,
@@ -258,13 +260,47 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         Settled: { label: "Settled", color: "hsl(var(--chart-4))" },
         Doubtful: { label: "Doubtful", color: "hsl(var(--chart-5))" },
     } as const;
+
+    const handleStatusChange = (newStatus: string, index: number) => {
+        const newAccounts = [...detailedAccounts];
+        newAccounts[index].status = newStatus as AccountDetail['status'];
+        setDetailedAccounts(newAccounts);
+    }
     
+    const handleDownload = async () => {
+        const element = summaryRef.current;
+        if (!element) return;
+        
+        toast({ title: "Preparing Download", description: "Generating PDF, please wait..." });
+
+        const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            logging: true,
+        });
+
+        const pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'px',
+            format: [canvas.width, canvas.height]
+        });
+
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`credit_summary_${analysis.consumerInformation.name.replace(/ /g, '_')}.pdf`);
+        
+        toast({ title: "Download Ready!", description: "Your PDF has been downloaded." });
+    };
 
   return (
-    <div className="space-y-6">
-        <Button variant="outline" onClick={onBack} className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4"/> Back to Main View
-        </Button>
+    <div className="space-y-6" ref={summaryRef}>
+        <div className="flex justify-between items-center mb-4">
+            <Button variant="outline" onClick={onBack}>
+                <ArrowLeft className="mr-2 h-4 w-4"/> Back to Main View
+            </Button>
+            <Button onClick={handleDownload}>
+                <Download className="mr-2 h-4 w-4" /> Download Summary
+            </Button>
+        </div>
         <Card>
             <CardHeader>
                 <CardTitle>Credit Summary</CardTitle>
@@ -397,40 +433,56 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {detailedAccounts.map((acc, index) => (
-                  <React.Fragment key={index}>
-                    <TableRow>
-                      <TableCell className="font-medium">
-                        <div>{acc.accountType}</div>
-                        <div className="text-xs text-muted-foreground">({acc.ownershipType})</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                            <Badge variant="outline" className={`border-none text-white w-fit ${getStatusColor(acc.status)}`}>
-                                {acc.status}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                                {acc.status.toLowerCase() === 'closed' ? `Closed: ${acc.dateClosed}` : `Opened: ${acc.dateOpened}`}
-                            </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">₹{acc.sanctionedAmount.toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-right">₹{acc.currentBalance.toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-right text-red-500">₹{acc.overdueAmount.toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-right">₹{(acc.emi || 0).toLocaleString('en-IN')}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableCell colSpan={6} className="p-2">
-                           <div className="flex gap-1 flex-wrap p-2 bg-muted/50 rounded-md">
-                                <span className="text-xs font-semibold mr-2 flex items-center">Payment History:</span>
-                                {acc.paymentHistory.slice(0, 36).map((dpd, i) => (
-                                <DpdCircle key={i} value={dpd} />
-                                ))}
-                            </div>
-                        </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                ))}
+                {detailedAccounts.map((acc, index) => {
+                    const isEditable = acc.sanctionedAmount > 0 && acc.currentBalance === 0;
+
+                    return (
+                        <React.Fragment key={acc.accountType + index}>
+                            <TableRow>
+                                <TableCell className="font-medium">
+                                    <div>{acc.accountType}</div>
+                                    <div className="text-xs text-muted-foreground">({acc.ownershipType})</div>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex flex-col gap-1">
+                                        {isEditable ? (
+                                            <Select value={acc.status} onValueChange={(newStatus) => handleStatusChange(newStatus, index)}>
+                                                <SelectTrigger className={cn("w-fit border-none h-auto p-1.5 rounded-md text-xs", getStatusColor(acc.status), acc.status.toLowerCase() === 'active' ? 'text-white' : '')}>
+                                                    <SelectValue/>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Active">Active</SelectItem>
+                                                    <SelectItem value="Closed">Closed</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <Badge variant="outline" className={`border-none text-white w-fit ${getStatusColor(acc.status)}`}>
+                                                {acc.status}
+                                            </Badge>
+                                        )}
+                                        <span className="text-xs text-muted-foreground">
+                                            {acc.status.toLowerCase() === 'closed' ? `Closed: ${acc.dateClosed}` : `Opened: ${acc.dateOpened}`}
+                                        </span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right">₹{acc.sanctionedAmount.toLocaleString('en-IN')}</TableCell>
+                                <TableCell className="text-right">₹{acc.currentBalance.toLocaleString('en-IN')}</TableCell>
+                                <TableCell className="text-right text-red-500">₹{acc.overdueAmount.toLocaleString('en-IN')}</TableCell>
+                                <TableCell className="text-right">₹{(acc.emi || 0).toLocaleString('en-IN')}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell colSpan={6} className="p-2">
+                                   <div className="flex gap-1 flex-wrap p-2 bg-muted/50 rounded-md">
+                                        <span className="text-xs font-semibold mr-2 flex items-center">Payment History:</span>
+                                        {acc.paymentHistory.slice(0, 36).map((dpd, i) => (
+                                        <DpdCircle key={i} value={dpd} />
+                                        ))}
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        </React.Fragment>
+                    )
+                })}
               </TableBody>
             </Table>
           </div>
