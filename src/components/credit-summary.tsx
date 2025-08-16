@@ -262,9 +262,6 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
 
                     const result = await summarizePaymentBehavior({
                         rating: baseAnalysis.rating,
-                        totalPayments: baseAnalysis.totalPayments,
-                        onTimePayments: baseAnalysis.onTimePayments,
-                        latePayments: baseAnalysis.latePayments,
                         paymentHistory: paymentHistoryForAI
                     });
                      setBehaviorAnalyses(prev => ({...prev, [type]: {...baseAnalysis, summary: result.summary }}));
@@ -674,5 +671,3 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </>
   );
 }
-
-    

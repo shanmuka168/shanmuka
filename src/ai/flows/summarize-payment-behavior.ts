@@ -18,9 +18,6 @@ const PaymentHistoryDetailSchema = z.object({
 
 const SummarizePaymentBehaviorInputSchema = z.object({
   rating: z.string().describe("The overall payment behavior rating (e.g., 'Excellent', 'Good')."),
-  totalPayments: z.number().describe("Total number of payments recorded for the period."),
-  onTimePayments: z.number().describe("Number of on-time payments for the period."),
-  latePayments: z.number().describe("Number of late payments for the period."),
   paymentHistory: z.array(PaymentHistoryDetailSchema).describe("A detailed breakdown of payment history for each account in this category.")
 });
 
@@ -47,14 +44,12 @@ const prompt = ai.definePrompt({
   output: {schema: SummarizePaymentBehaviorOutputSchema},
   prompt: `You are a financial analyst. Based on the provided data for a specific time period, generate a concise, one-paragraph summary of the user's payment behavior.
 
+First, calculate the total on-time and late payments from the detailed payment history provided. A DPD of '0', '000', or 'STD' is on-time. Any other numeric value is late. 'XXX' means no data and should be ignored.
+
 Your summary should be easy to understand for a non-expert. If the payment history is good, be encouraging and mention the benefits. If there are late payments, point them out constructively and explain the potential impact on their credit score without being alarming.
 
 Data for Analysis:
 - Behavior Rating: {{{rating}}}
-- Total Payments Made: {{{totalPayments}}}
-- On-Time Payments: {{{onTimePayments}}}
-- Late Payments: {{{latePayments}}}
-
 - Detailed Payment History:
 {{#each paymentHistory}}
   - Account: {{{accountType}}}, Payments (DPD): [{{#each history}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}]
