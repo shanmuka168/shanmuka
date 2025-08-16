@@ -1,11 +1,15 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { FileUp, FileText, BarChart, FileSearch, PieChart, Info } from "lucide-react";
+import { FileUp, FileText, BarChart, FileSearch, PieChart, Info, LoaderCircle } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { useToast } from "@/hooks/use-toast";
+import { analyzeCibilReport, CibilReportAnalysis } from "@/ai/flows/analyze-cibil-flow";
+import { CibilAnalysisCard } from "./cibil-analysis-card";
+
 
 function InfoCard({ label, value }: { label: string; value: string }) {
     return (
@@ -16,7 +20,7 @@ function InfoCard({ label, value }: { label: string; value: string }) {
     )
 }
 
-function SummaryCard({ title, value }: { title: string, value: string }) {
+function SummaryCard({ title, value }: { title: string, value: string | number }) {
     return (
         <div className="border rounded-lg p-3 text-center">
             <p className="text-xs text-muted-foreground">{title}</p>
@@ -26,6 +30,55 @@ function SummaryCard({ title, value }: { title: string, value: string }) {
 }
 
 export function CreditAnalysisPage() {
+    const { toast } = useToast();
+    const [analysis, setAnalysis] = useState<CibilReportAnalysis | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (file.type !== "application/pdf") {
+            toast({
+                title: "Invalid File Type",
+                description: "Please upload a PDF file.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setIsLoading(true);
+        setAnalysis(null);
+
+        try {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const reportDataUri = reader.result as string;
+                const result = await analyzeCibilReport({ reportDataUri });
+                setAnalysis(result);
+                 toast({
+                    title: "Analysis Complete",
+                    description: "Your CIBIL report has been analyzed.",
+                });
+            };
+        } catch (error) {
+            console.error(error);
+            toast({
+                title: "Analysis Failed",
+                description: "Something went wrong. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+
     return (
         <div className="container mx-auto p-4 sm:p-6 space-y-6">
             <div className="text-center">
@@ -41,106 +94,56 @@ export function CreditAnalysisPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Button>
-                        <FileText className="mr-2 h-4 w-4" /> Choose PDF File
+                     <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept="application/pdf"
+                        disabled={isLoading}
+                    />
+                    <Button onClick={handleUploadClick} disabled={isLoading}>
+                        {isLoading ? (
+                            <>
+                                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                                Analyzing...
+                            </>
+                        ) : (
+                            <>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Choose PDF File
+                            </>
+                        )}
                     </Button>
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center gap-2">
-                         <Info className="h-5 w-5 text-primary"/>
-                         <CardTitle className="text-base font-semibold">Credit Score & Consumer Information</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-6">
-                    <div className="flex flex-col items-center justify-center bg-muted/40 rounded-lg p-6">
-                        <p className="text-sm text-muted-foreground">Official CIBIL Score</p>
-                        <p className="text-6xl font-bold text-primary">N/A</p>
-                    </div>
-                    <div className="space-y-3">
-                        <h3 className="font-semibold text-center md:text-left">AI-Extracted Consumer Information</h3>
-                        <InfoCard label="Name" value="N/A" />
-                        <InfoCard label="Date of Birth" value="N/A" />
-                        <InfoCard label="Gender" value="N/A" />
-                        <InfoCard label="PAN" value="N/A" />
-                        <InfoCard label="Mobile Number" value="N/A" />
-                        <InfoCard label="Address" value="N/A" />
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                 <CardHeader>
-                    <div className="flex items-center gap-2">
-                        <FileSearch className="h-5 w-5 text-primary"/>
-                        <CardTitle className="text-base font-semibold">Report Summary</CardTitle>
-                    </div>
-                    <CardDescription>This summary is generated by an AI analyzing your CIBIL report.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div>
-                        <h3 className="font-semibold mb-2">Account Summary</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <SummaryCard title="Total Accounts" value="N/A" />
-                            <SummaryCard title="Active Accounts" value="N/A" />
-                            <SummaryCard title="High Credit/Sanc. Amt" value="N/A" />
-                            <SummaryCard title="Current Balance" value="N/A" />
-                            <SummaryCard title="Overdue Amount" value="N/A" />
-                            <SummaryCard title="Written Off" value="N/A" />
+            {analysis ? (
+                <CibilAnalysisCard analysis={analysis} />
+            ) : !isLoading ? (
+                <Card>
+                     <CardHeader>
+                        <div className="flex items-center gap-2">
+                             <Info className="h-5 w-5 text-primary"/>
+                             <CardTitle className="text-base font-semibold">Your Analysis Will Appear Here</CardTitle>
                         </div>
-                    </div>
-                     <div>
-                        <h3 className="font-semibold mb-2">Enquiry Summary</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <SummaryCard title="Total Enquiries" value="N/A" />
-                            <SummaryCard title="Last 30 Days" value="N/A" />
-                            <SummaryCard title="Last 12 Months" value="N/A" />
-                            <SummaryCard title="Last 24 Months" value="N/A" />
-                            <SummaryCard title="Most Recent Enquiry" value="N/A" />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                 <CardHeader>
-                     <div className="flex items-center gap-2">
-                        <BarChart className="h-5 w-5 text-primary"/>
-                        <CardTitle className="text-base font-semibold">Analysis Dashboard</CardTitle>
-                     </div>
-                    <CardDescription>Select a section to view its detailed analysis. Some sections require premium steps to be completed.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Button variant="outline" className="h-20 flex-col gap-1">
-                        <BarChart className="h-6 w-6" />
-                        <span>Credit Summary</span>
-                    </Button>
-                    <Button variant="outline" className="h-20 flex-col gap-1">
-                        <FileSearch className="h-6 w-6" />
-                        <span>AI Risk Assessment</span>
-                    </Button>
-                    <Button variant="outline" className="h-20 flex-col gap-1">
-                        <PieChart className="h-6 w-6" />
-                        <span>AI Credit Matrix</span>
-                    </Button>
-                     <Button variant="outline" className="h-20 flex-col gap-1">
-                        <FileText className="h-6 w-6" />
-                        <span>Financials</span>
-                    </Button>
-                </CardContent>
-            </Card>
-
-            <Accordion type="single" collapsible>
-                <AccordionItem value="item-1">
-                    <AccordionTrigger>Raw Report Text & Cost</AccordionTrigger>
-                    <AccordionContent>
-                        <p className="text-muted-foreground">Detailed raw text from the report will be displayed here once processed.</p>
-                    </AccordionContent>
-                </AccordionItem>
-            </Accordion>
-
+                    </CardHeader>
+                     <CardContent>
+                        <p className="text-muted-foreground">Upload your CIBIL report to get started.</p>
+                    </CardContent>
+                </Card>
+            ) : (
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Analyzing Report</CardTitle>
+                        <CardDescription>The AI is processing your CIBIL report. This may take a moment...</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex items-center justify-center p-8">
+                        <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+                    </CardContent>
+                </Card>
+            )
+            }
         </div>
     )
 }
