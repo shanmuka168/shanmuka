@@ -20,6 +20,17 @@ const AnalyzeCibilReportInputSchema = z.object({
 });
 export type AnalyzeCibilReportInput = z.infer<typeof AnalyzeCibilReportInputSchema>;
 
+const AccountDetailSchema = z.object({
+    accountType: z.string().describe("The type of the credit account (e.g., Credit Card, Personal Loan)."),
+    status: z.enum(['Active', 'Closed', 'Written Off', 'Settled', 'Doubtful']).describe("The current status of the account."),
+    sanctionedAmount: z.number().describe("The sanctioned loan amount or credit limit."),
+    currentBalance: z.number().describe("The current outstanding balance."),
+    overdueAmount: z.number().describe("The overdue amount, if any."),
+    emi: z.number().optional().describe("The Equated Monthly Installment (EMI), if applicable."),
+    dateOpened: z.string().describe("The date the account was opened in DD-MM-YYYY format."),
+    paymentHistory: z.array(z.string()).describe("An array of 12 strings representing the payment status for the last 12 months. Use '0' for paid on time, '30' for 1-30 days past due, '60' for 31-60, '90' for 61-90, '90+' for 90+ days, and 'X' for no data."),
+});
+
 const CibilReportAnalysisSchema = z.object({
     creditScore: z.number().describe('The CIBIL credit score.'),
     consumerInformation: z.object({
@@ -46,6 +57,7 @@ const CibilReportAnalysisSchema = z.object({
         mostRecentEnquiryDate: z.string().describe('The date of the most recent enquiry in DD-MM-YYYY format.'),
     }),
     overallSummary: z.string().describe('A concise, one-paragraph overall summary of the credit report, highlighting the most important positive and negative aspects.'),
+    detailedAccounts: z.array(AccountDetailSchema).describe("A detailed list of all credit accounts found in the report.")
 });
 export type CibilReportAnalysis = z.infer<typeof CibilReportAnalysisSchema>;
 
@@ -67,6 +79,7 @@ const prompt = ai.definePrompt({
   - Account Summary: Extract the total number of accounts, number of active accounts, total high credit/sanctioned amount, total current balance, total overdue amount, and total written-off amount. All values should be numbers.
   - Enquiry Summary: Extract the total number of enquiries, enquiries in the last 30 days, 12 months, and 24 months. Also, provide the date of the most recent enquiry.
   - Overall Summary: Write a concise, one-paragraph summary of the credit health based on the report.
+  - Detailed Accounts: Extract a detailed list of all individual credit accounts. For each account, provide the account type, status, sanctioned amount, current balance, overdue amount, EMI, date opened, and payment history for the last 12 months.
 
   Ensure all dates are in DD-MM-YYYY format. If a specific piece of information is not available in the report, use a reasonable default value (like 0 for numerical fields or "N/A" for strings) but try your best to find it.
 

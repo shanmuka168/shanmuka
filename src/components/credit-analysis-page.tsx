@@ -4,10 +4,11 @@
 import { useState, useRef } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { FileUp, FileText, LoaderCircle, CheckCircle, Info, BarChart, FileWarning, ShieldCheck, UserCog } from "lucide-react";
+import { FileUp, FileText, LoaderCircle, CheckCircle, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeCibilReport, CibilReportAnalysis } from "@/ai/flows/analyze-cibil-flow";
 import { CibilAnalysisCard } from "./cibil-analysis-card";
+import { CreditSummary } from "./credit-summary";
 
 
 export function CreditAnalysisPage() {
@@ -16,6 +17,7 @@ export function CreditAnalysisPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [fileName, setFileName] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [view, setView] = useState<'main' | 'details'>('main');
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -33,6 +35,7 @@ export function CreditAnalysisPage() {
         setIsLoading(true);
         setAnalysis(null);
         setFileName(file.name);
+        setView('main');
 
         try {
             const reader = new FileReader();
@@ -66,46 +69,52 @@ export function CreditAnalysisPage() {
     const handleChooseAnother = () => {
         setAnalysis(null);
         setFileName("");
-        fileInputRef.current?.click();
+        setView('main');
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
     };
 
-    return (
-        <div className="container mx-auto p-4 sm:p-6 space-y-6 bg-background/80">
-            <div className="text-center">
-                <h1 className="text-3xl font-bold font-headline">Credit Analysis</h1>
-                <p className="text-muted-foreground">Upload your CIBIL report PDF to unlock instant AI-powered insights, personalized scoring, and actionable advice.</p>
-            </div>
-
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center gap-2">
-                        <FileUp className="h-5 w-5 text-primary"/>
-                        <CardTitle className="text-base font-semibold">Upload Your CIBIL Report (PDF)</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                     <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        className="hidden"
-                        accept="application/pdf"
-                        disabled={isLoading}
-                    />
-                    {!analysis && !isLoading && (
-                        <Button onClick={handleUploadClick}>
-                            <FileText className="mr-2 h-4 w-4" />
-                            Choose PDF File
-                        </Button>
-                    )}
-                    {isLoading && (
-                         <div className="flex items-center gap-2 text-muted-foreground">
-                            <LoaderCircle className="h-5 w-5 animate-spin" />
-                            <span>Analyzing "{fileName}"... This may take a moment.</span>
+    const renderContent = () => {
+        if (view === 'details' && analysis) {
+            return <CreditSummary analysis={analysis} onBack={() => setView('main')} />;
+        }
+        
+        return (
+            <div className="space-y-6">
+                <div className="text-center">
+                    <h1 className="text-3xl font-bold font-headline">Credit Analysis</h1>
+                    <p className="text-muted-foreground">Upload your CIBIL report PDF to unlock instant AI-powered insights, personalized scoring, and actionable advice.</p>
+                </div>
+                 <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <FileUp className="h-5 w-5 text-primary"/>
+                            <CardTitle className="text-base font-semibold">Upload Your CIBIL Report (PDF)</CardTitle>
                         </div>
-                    )}
-                    {analysis && !isLoading && (
-                        <div className="space-y-4">
+                    </CardHeader>
+                    <CardContent>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            className="hidden"
+                            accept="application/pdf"
+                            disabled={isLoading}
+                        />
+                        {!fileName && !isLoading && (
+                            <Button onClick={handleUploadClick}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Choose PDF File
+                            </Button>
+                        )}
+                        {isLoading && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <LoaderCircle className="h-5 w-5 animate-spin" />
+                                <span>Analyzing "{fileName}"... This may take a moment.</span>
+                            </div>
+                        )}
+                        {analysis && !isLoading && (
                             <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10 border border-green-500/20">
                                 <div className="flex items-center gap-3">
                                     <CheckCircle className="h-6 w-6 text-green-500"/>
@@ -116,29 +125,32 @@ export function CreditAnalysisPage() {
                                 </div>
                                 <Button onClick={handleChooseAnother} variant="outline" size="sm">Choose Another File</Button>
                             </div>
-                           
-                        </div>
-
-                    )}
-                </CardContent>
-            </Card>
-
-            {analysis ? (
-                <CibilAnalysisCard analysis={analysis} />
-            ) : !isLoading && (
-                <Card>
-                     <CardHeader>
-                        <div className="flex items-center gap-2">
-                             <Info className="h-5 w-5 text-primary"/>
-                             <CardTitle className="text-base font-semibold">Your Analysis Will Appear Here</CardTitle>
-                        </div>
-                    </CardHeader>
-                     <CardContent>
-                        <p className="text-muted-foreground">Upload your CIBIL report to get started.</p>
+                        )}
                     </CardContent>
                 </Card>
-            )
-            }
+
+                {analysis ? (
+                    <CibilAnalysisCard analysis={analysis} onViewDetails={() => setView('details')} />
+                ) : !isLoading && (
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <Info className="h-5 w-5 text-primary"/>
+                                <CardTitle className="text-base font-semibold">Your Analysis Will Appear Here</CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-muted-foreground">Upload your CIBIL report to get started.</p>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+        )
+    }
+
+    return (
+        <div className="container mx-auto p-4 sm:p-6 bg-background/80">
+            {renderContent()}
         </div>
     )
 }

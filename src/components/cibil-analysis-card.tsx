@@ -16,6 +16,7 @@ import { Progress } from "./ui/progress";
 
 interface CibilAnalysisCardProps {
   analysis: CibilReportAnalysis;
+  onViewDetails: () => void;
 }
 
 function InfoItem({ icon: Icon, label, value }: { icon: React.ElementType, label: string; value: string | number | undefined }) {
@@ -50,7 +51,7 @@ const getScoreColor = (score: number) => {
     return "bg-red-500";
 }
 
-export function CibilAnalysisCard({ analysis }: CibilAnalysisCardProps) {
+export function CibilAnalysisCard({ analysis, onViewDetails }: CibilAnalysisCardProps) {
   const { creditScore, consumerInformation, accountSummary, enquirySummary, overallSummary } = analysis;
 
   return (
@@ -141,7 +142,7 @@ export function CibilAnalysisCard({ analysis }: CibilAnalysisCardProps) {
                 <CardDescription>Select a section to view its detailed analysis. Some sections require previous steps to be completed.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button variant="outline" className="flex-col h-20"><BarChart className="h-6 w-6 mb-1"/> Credit Summary</Button>
+                <Button variant="outline" className="flex-col h-20" onClick={onViewDetails}><BarChart className="h-6 w-6 mb-1"/> Credit Summary</Button>
                 <Button variant="outline" className="flex-col h-20"><FileWarning className="h-6 w-6 mb-1"/> AI Risk Assessment</Button>
                 <Button variant="outline" className="flex-col h-20"><UserCog className="h-6 w-6 mb-1"/> AI Credit Mentor</Button>
                 <Button variant="outline" className="flex-col h-20"><ShieldCheck className="h-6 w-6 mb-1"/> Financials</Button>
