@@ -1,6 +1,7 @@
 
 "use client";
 
+import * as React from "react";
 import { useState, useMemo } from 'react';
 import type { CibilReportAnalysis } from '@/ai/flows/analyze-cibil-flow';
 import { Button } from './ui/button';
@@ -280,4 +281,5 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
       </Card>
     </div>
   );
-}
+
+    
