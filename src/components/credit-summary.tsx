@@ -46,7 +46,9 @@ const getDpdColor = (dpd: string) => {
 }
 
 const getDpdIcon = (dpd: string) => {
-    return <XCircle className="h-4 w-4" />;
+    if (dpd === '0') return <CheckCircle className="h-4 w-4 text-green-500" />;
+    if (dpd === 'X') return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
+    return <XCircle className="h-4 w-4 text-red-500" />;
 }
 
 export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
@@ -247,7 +249,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     <TableCell>
                       <div className="flex gap-1">
                         {acc.paymentHistory.slice(0, 12).map((dpd, i) => (
-                           <div key={i} className="text-red-500" title={`DPD: ${dpd}`}>
+                           <div key={i} title={`DPD: ${dpd}`}>
                                {getDpdIcon(dpd)}
                            </div>
                         ))}
