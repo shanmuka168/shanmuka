@@ -57,25 +57,31 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
 
     const summaryData = useMemo(() => {
         const activeAccounts = detailedAccounts.filter(acc => acc.status === 'Active');
-        const closedAccounts = detailedAccounts.filter(acc => acc.status === 'Closed');
-        const writtenOffAccounts = detailedAccounts.filter(acc => acc.status === 'Written Off');
-        const settledAccounts = detailedAccounts.filter(acc => acc.status === 'Settled');
-        const doubtfulAccounts = detailedAccounts.filter(acc => acc.status === 'Doubtful');
         const totalSanctioned = detailedAccounts.reduce((sum, acc) => sum + acc.sanctionedAmount, 0);
         const totalOutstanding = detailedAccounts.reduce((sum, acc) => sum + acc.currentBalance, 0);
         const totalEmi = activeAccounts.reduce((sum, acc) => sum + (acc.emi || 0), 0);
         const creditUtilization = totalSanctioned > 0 ? (totalOutstanding / totalSanctioned) * 100 : 0;
+        
+        const statusCounts = detailedAccounts.reduce((counts, acc) => {
+            const status = acc.status.toLowerCase();
+            if (status.includes('written off')) counts.writtenOff++;
+            else if (status.includes('doubtful')) counts.doubtful++;
+            else if (status.includes('settled')) counts.settled++;
+            else if (status.includes('closed')) counts.closed++;
+            else if (status.includes('active')) counts.active++;
+            return counts;
+        }, { active: 0, closed: 0, writtenOff: 0, doubtful: 0, settled: 0 });
 
         return {
             totalAccounts: detailedAccounts.length,
-            activeAccounts: activeAccounts.length,
-            closedAccounts: closedAccounts.length,
+            activeAccounts: statusCounts.active,
+            closedAccounts: statusCounts.closed,
             totalSanctioned: `₹${totalSanctioned.toLocaleString('en-IN')}`,
             totalOutstanding: `₹${totalOutstanding.toLocaleString('en-IN')}`,
             creditUtilization: `${creditUtilization.toFixed(2)}%`,
-            writtenOff: writtenOffAccounts.length,
-            doubtful: doubtfulAccounts.length,
-            settled: settledAccounts.length,
+            writtenOff: statusCounts.writtenOff,
+            doubtful: statusCounts.doubtful,
+            settled: statusCounts.settled,
             totalEmi: `₹${totalEmi.toLocaleString('en-IN')}`
         };
     }, [detailedAccounts]);
@@ -106,11 +112,11 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
 
     const chartConfig = {
         value: { label: "Accounts" },
-        Active: { label: "Active" },
-        Closed: { label: "Closed" },
-        "Written Off": { label: "Written Off" },
-        Settled: { label: "Settled" },
-        Doubtful: { label: "Doubtful" },
+        Active: { label: "Active", color: "hsl(var(--chart-1))" },
+        Closed: { label: "Closed", color: "hsl(var(--chart-2))" },
+        "Written Off": { label: "Written Off", color: "hsl(var(--chart-3))" },
+        Settled: { label: "Settled", color: "hsl(var(--chart-4))" },
+        Doubtful: { label: "Doubtful", color: "hsl(var(--chart-5))" },
     };
     
 
@@ -242,7 +248,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     <TableCell>{acc.dateOpened}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {acc.paymentHistory.map((dpd, i) => (
+                        {acc.paymentHistory.slice(0, 12).map((dpd, i) => (
                            <div key={i} className={getDpdColor(dpd)} title={`DPD: ${dpd}`}>
                                {getDpdIcon(dpd)}
                            </div>
