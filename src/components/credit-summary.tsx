@@ -26,6 +26,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Switch } from './ui/switch';
 import { Input } from './ui/input';
+import { Label } from './ui/label';
 
 interface EnhancedAccountDetail extends AccountDetail {
   isConsidered: boolean;
@@ -450,8 +451,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Consider</TableHead>
-                  <TableHead>Account Type</TableHead>
+                  <TableHead>Account Details</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Sanctioned</TableHead>
                   <TableHead className="text-right">Outstanding</TableHead>
@@ -462,21 +462,24 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
               <TableBody>
                 {detailedAccounts.map((acc, index) => {
                     const isStatusEditable = acc.status.toLowerCase() === 'active' && acc.currentBalance === 0;
-                    const isEmiEditable = acc.status.toLowerCase() === 'active' && acc.sanctionedAmount > 0 && acc.currentBalance > 0;
+                    const isEmiEditable = acc.status.toLowerCase() === 'active' && acc.currentBalance > 0 && (acc.emi || 0) === 0;
+                    const accId = `account-${index}`;
 
                     return (
                         <React.Fragment key={acc.accountType + index}>
                             <TableRow className={!acc.isConsidered ? 'bg-muted/50' : ''}>
-                                <TableCell>
-                                     <Switch
-                                        checked={acc.isConsidered}
-                                        onCheckedChange={(checked) => handleAccountChange(index, { isConsidered: checked })}
-                                        aria-label="Consider account"
-                                    />
-                                </TableCell>
                                 <TableCell className="font-medium">
-                                    <div>{acc.accountType}</div>
-                                    <div className="text-xs text-muted-foreground">({acc.ownershipType})</div>
+                                    <div className="font-semibold">{acc.accountType}</div>
+                                    <div className="text-xs text-muted-foreground mb-2">({acc.ownershipType})</div>
+                                    <div className="flex items-center space-x-2">
+                                        <Switch
+                                            id={accId}
+                                            checked={acc.isConsidered}
+                                            onCheckedChange={(checked) => handleAccountChange(index, { isConsidered: checked })}
+                                            aria-label="Consider account"
+                                        />
+                                        <Label htmlFor={accId} className="text-xs text-muted-foreground">Consider</Label>
+                                    </div>
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex flex-col gap-1">
@@ -513,7 +516,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                             className="w-24 h-8 text-right"
                                             value={acc.manualEmi ?? acc.emi || ''}
                                             onChange={(e) => handleAccountChange(index, { manualEmi: e.target.valueAsNumber })}
-                                            placeholder="EMI"
+                                            placeholder="Enter EMI"
                                         />
                                     ) : (
                                         `₹${(acc.emi || 0).toLocaleString('en-IN')}`
@@ -521,7 +524,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                 </TableCell>
                             </TableRow>
                             <TableRow className={!acc.isConsidered ? 'bg-muted/50' : ''}>
-                                <TableCell colSpan={7} className="p-2">
+                                <TableCell colSpan={6} className="p-2">
                                    <div className="flex gap-1 flex-wrap p-2 bg-background/50 rounded-md">
                                         <span className="text-xs font-semibold mr-2 flex items-center">Payment History:</span>
                                         {acc.paymentHistory.slice(0, 36).map((dpd, i) => (
@@ -541,5 +544,3 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </div>
   );
 }
-
-    
