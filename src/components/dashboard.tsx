@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Transaction } from "@/lib/types";
 import { Logo } from "@/components/icons";
 import { Button } from "./ui/button";
 import { LogOut } from "lucide-react";
@@ -10,6 +9,7 @@ import { Skeleton } from "./ui/skeleton";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import { AnalysisTabs } from "./analysis-tabs";
 
 
 export default function Dashboard() {
@@ -42,7 +42,6 @@ export default function Dashboard() {
                 <Skeleton className="h-10 w-24" />
             </div>
             <div className="space-y-6 mt-6">
-                <Skeleton className="h-32 w-full rounded-lg" />
                 <Skeleton className="h-64 w-full rounded-lg" />
             </div>
         </div>
@@ -66,7 +65,7 @@ export default function Dashboard() {
         </div>
       </header>
       <main className="flex-1 p-4 md:p-6">
-        {/* The main content of the dashboard will go here. */}
+        <AnalysisTabs />
       </main>
     </div>
   );
