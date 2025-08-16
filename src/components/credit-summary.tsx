@@ -80,8 +80,9 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     const [dpdFilter, setDpdFilter] = useState('12');
     const { detailedAccounts } = analysis;
 
+    const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status === 'Active'), [detailedAccounts]);
+
     const summaryData = useMemo(() => {
-        const activeAccounts = detailedAccounts.filter(acc => acc.status === 'Active');
         const totalSanctioned = detailedAccounts.reduce((sum, acc) => sum + acc.sanctionedAmount, 0);
         const totalOutstanding = detailedAccounts.reduce((sum, acc) => sum + acc.currentBalance, 0);
         const totalEmi = activeAccounts.reduce((sum, acc) => sum + (acc.emi || 0), 0);
@@ -109,12 +110,12 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             settled: statusCounts.settled,
             totalEmi: `₹${totalEmi.toLocaleString('en-IN')}`
         };
-    }, [detailedAccounts]);
+    }, [detailedAccounts, activeAccounts]);
     
     const dpdAnalysis = useMemo(() => {
         const months = parseInt(dpdFilter);
         const analysis = { '1-30': 0, '31-60': 0, '61-90': 0, '90+': 0, 'ontime': 0, 'total': 0 };
-        detailedAccounts.forEach(acc => {
+        activeAccounts.forEach(acc => {
             const history = acc.paymentHistory.slice(0, months);
             history.forEach(dpdStr => {
                  if (dpdStr === 'XXX') return;
@@ -134,7 +135,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             });
         });
         return analysis;
-    }, [detailedAccounts, dpdFilter]);
+    }, [activeAccounts, dpdFilter]);
 
     const behaviorAnalysis = useMemo(() => {
         const totalPayments = dpdAnalysis.total;
@@ -288,7 +289,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         <Card>
             <CardHeader>
                 <CardTitle>Customer Payment Behavior</CardTitle>
-                <CardDescription>Analysis for last {dpdFilter} months.</CardDescription>
+                <CardDescription>Analysis for active loans over the last {dpdFilter} months.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                  <div>
