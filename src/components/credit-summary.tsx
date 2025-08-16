@@ -28,11 +28,19 @@ import { Switch } from './ui/switch';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
+import { Textarea } from './ui/textarea';
 
 interface EnhancedAccountDetail extends AccountDetail {
   isConsidered: boolean;
   manualEmi?: number;
 }
+
+type ChangeLog = {
+    id: string;
+    text: string;
+}
+
 interface CreditSummaryProps {
   analysis: CibilReportAnalysis;
   onBack: () => void;
@@ -99,7 +107,11 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         'Guarantor': null,
         'Joint': null,
     });
-     const [userChanges, setUserChanges] = useState<string[]>([]);
+    const [userChanges, setUserChanges] = useState<ChangeLog[]>([]);
+    
+    const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+    const [activeChange, setActiveChange] = useState<{index: number, updates: Partial<EnhancedAccountDetail>, oldAccount: EnhancedAccountDetail} | null>(null);
+    const [comment, setComment] = useState("");
 
     const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status === 'Active' && acc.isConsidered), [detailedAccounts]);
 
@@ -280,30 +292,56 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         Doubtful: { label: "Doubtful", color: "hsl(var(--chart-5))" },
     } as const;
 
-    const handleAccountChange = (index: number, updates: Partial<EnhancedAccountDetail>) => {
+    const initiateChange = (index: number, updates: Partial<EnhancedAccountDetail>) => {
+        const oldAccount = detailedAccounts[index];
+        
+        // For status changes, we prompt for a comment.
+        if (updates.status) {
+            setActiveChange({ index, updates, oldAccount });
+            setCommentDialogOpen(true);
+        } else {
+            // For other changes, we apply them directly.
+            applyChange(index, updates, oldAccount, null);
+        }
+    };
+    
+    const applyChange = (index: number, updates: Partial<EnhancedAccountDetail>, oldAccount: EnhancedAccountDetail, commentText: string | null) => {
         const newAccounts = [...detailedAccounts];
-        const oldAccount = newAccounts[index];
         newAccounts[index] = { ...oldAccount, ...updates };
         setDetailedAccounts(newAccounts);
-
+    
         // Track changes
         const changeLogs: string[] = [];
         const accountName = `'${oldAccount.accountType}'`;
-
+    
         if (updates.isConsidered !== undefined && updates.isConsidered !== oldAccount.isConsidered) {
             changeLogs.push(`${updates.isConsidered ? 'Included' : 'Excluded'} ${accountName} from calculations.`);
         }
         if (updates.status && updates.status !== oldAccount.status) {
-            changeLogs.push(`Changed status of ${accountName} to '${updates.status}'.`);
+            let log = `Changed status of ${accountName} to '${updates.status}'.`;
+            if (commentText) {
+                log += ` Reason: ${commentText}`;
+            }
+            changeLogs.push(log);
         }
         if (updates.manualEmi !== undefined && updates.manualEmi !== (oldAccount.manualEmi ?? oldAccount.emi)) {
-            changeLogs.push(`Updated EMI for ${accountName} to ₹${updates.manualEmi.toLocaleString('en-IN')}.`);
+            changeLogs.push(`Updated EMI for ${accountName} to ₹${(updates.manualEmi || 0).toLocaleString('en-IN')}.`);
         }
-        
+    
         if (changeLogs.length > 0) {
-            setUserChanges(prev => [...prev, ...changeLogs]);
+            const newChangeLogs: ChangeLog[] = changeLogs.map(log => ({ id: Date.now().toString() + Math.random(), text: log }));
+            setUserChanges(prev => [...prev, ...newChangeLogs]);
         }
-    };
+    }
+
+    const handleCommentDialogSubmit = () => {
+        if (activeChange) {
+            applyChange(activeChange.index, activeChange.updates, activeChange.oldAccount, comment);
+        }
+        setCommentDialogOpen(false);
+        setActiveChange(null);
+        setComment("");
+    }
     
     const handleDownload = async () => {
         const element = summaryRef.current;
@@ -340,6 +378,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     };
 
   return (
+    <>
     <div className="space-y-6" ref={summaryRef}>
         <div className="flex justify-between items-center mb-4">
             <Button variant="outline" onClick={onBack}>
@@ -497,7 +536,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                         <Switch
                                             id={accId}
                                             checked={acc.isConsidered}
-                                            onCheckedChange={(checked) => handleAccountChange(index, { isConsidered: checked })}
+                                            onCheckedChange={(checked) => initiateChange(index, { isConsidered: checked })}
                                             aria-label="Consider account"
                                         />
                                         <Label htmlFor={accId} className="text-xs text-muted-foreground">Consider</Label>
@@ -509,7 +548,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                         {isStatusEditable ? (
                                             <Select 
                                                 value={acc.status} 
-                                                onValueChange={(newStatus) => handleAccountChange(index, { status: newStatus as AccountDetail['status'] })}
+                                                onValueChange={(newStatus) => initiateChange(index, { status: newStatus as AccountDetail['status'] })}
                                             >
                                                 <SelectTrigger className={cn("w-fit border-none h-auto p-1.5 rounded-md text-xs", getStatusColor(acc.status), getStatusColor(acc.status) === 'bg-green-500' ? 'text-white' : '')}>
                                                     <SelectValue/>
@@ -537,8 +576,8 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                         <Input
                                             type="number"
                                             className="w-24 h-8 text-right"
-                                            value={acc.manualEmi ?? acc.emi || ''}
-                                            onChange={(e) => handleAccountChange(index, { manualEmi: e.target.valueAsNumber })}
+                                            defaultValue={acc.manualEmi ?? acc.emi || ''}
+                                            onBlur={(e) => initiateChange(index, { manualEmi: e.target.valueAsNumber })}
                                             placeholder="Enter EMI"
                                         />
                                     ) : (
@@ -571,15 +610,33 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
              <AlertDescription>
                 <p className="mb-2">The summary and analyses have been updated based on the following manual changes:</p>
                 <ul className="list-disc pl-5 space-y-1">
-                    {userChanges.map((change, index) => (
-                        <li key={index}>{change}</li>
+                    {userChanges.map((change) => (
+                        <li key={change.id}>{change.text}</li>
                     ))}
                 </ul>
              </AlertDescription>
          </Alert>
         )}
     </div>
+     <AlertDialog open={commentDialogOpen} onOpenChange={setCommentDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Add Comment</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Please provide a reason for changing the status of the '{activeChange?.oldAccount.accountType}' account to '{activeChange?.updates.status}'.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Textarea 
+                placeholder="Type your comment here..."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+            />
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setActiveChange(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleCommentDialogSubmit}>Submit</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
-
-    
