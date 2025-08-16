@@ -10,6 +10,7 @@ import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "./ui/card";
+import { CreditAnalysisPage } from "./credit-analysis-page";
 
 
 export default function Dashboard() {
@@ -59,7 +60,7 @@ export default function Dashboard() {
     switch (activeTab) {
         case "Dashboard":
             return (
-                <div className="flex-1 flex flex-col items-center justify-center text-center">
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
                     <h2 className="text-3xl font-bold font-headline">Welcome to CreditWise AI</h2>
                     <p className="text-muted-foreground mb-8">Your suite of tools for intelligent credit analysis.</p>
                     <Card className="w-full max-w-2xl">
@@ -80,9 +81,8 @@ export default function Dashboard() {
             );
         case "Credit":
             return (
-                <div className="flex-1 flex flex-col items-center justify-center">
-                    <h2 className="text-2xl font-bold">Credit Analysis</h2>
-                    <p>Content for credit analysis goes here.</p>
+                <div className="flex-1 w-full">
+                    <CreditAnalysisPage />
                 </div>
             )
         // Add cases for other tabs here
@@ -97,7 +97,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-background/60">
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur-sm sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
         <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-primary" />
@@ -112,7 +112,7 @@ export default function Dashboard() {
             </Button>
         </div>
       </header>
-      <main className="flex-1 p-4 md:p-6 flex">
+      <main className="flex-1 flex">
         {renderContent()}
       </main>
       <footer className="sticky bottom-0 z-30 flex h-16 items-center justify-center gap-4 border-t bg-background/95 p-2 backdrop-blur-sm">
