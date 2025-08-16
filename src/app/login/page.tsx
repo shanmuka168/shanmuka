@@ -44,7 +44,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
             <div className="flex justify-center items-center gap-2 mb-2">
                 <Logo className="h-8 w-8 text-primary" />
-                <CardTitle className="font-headline text-3xl">FinSight Analyzer</CardTitle>
+                <CardTitle className="font-headline text-3xl">CreditWise AI</CardTitle>
             </div>
           <CardDescription>
             Enter your email below to login to your account

@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'FinSight Analyzer',
-  description: 'Analyze your bank statements with the power of AI.',
+  title: 'CreditWise AI',
+  description: 'Analyze your financial documents with the power of AI.',
 };
 
 export default function RootLayout({

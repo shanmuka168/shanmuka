@@ -4,23 +4,23 @@
 import { useState, useEffect } from "react";
 import { Logo } from "@/components/icons";
 import { Button } from "./ui/button";
-import { LogOut } from "lucide-react";
-import { Skeleton } from "./ui/skeleton";
+import { LogOut, Home, FileText, Fingerprint, Files, Bot, LoaderCircle } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { AnalysisTabs } from "./analysis-tabs";
+import { cn } from "@/lib/utils";
 
 
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState("Dashboard");
 
   useEffect(() => {
     // Simulate loading
     const timer = setTimeout(() => {
         setIsLoading(false);
-    }, 500);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, []);
@@ -31,18 +31,24 @@ export default function Dashboard() {
     router.push("/login");
   };
 
+  const navItems = [
+    { name: "Dashboard", icon: Home },
+    { name: "Credit", icon: FileText },
+    { name: "Verify", icon: Fingerprint },
+    { name: "Cross-Verify", icon: Files },
+    { name: "Trainer", icon: Bot },
+  ]
+
   if (isLoading) {
     return (
-        <div className="p-4 md:p-8 space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Skeleton className="h-10 w-10 rounded-lg" />
-                    <Skeleton className="h-8 w-64" />
-                </div>
-                <Skeleton className="h-10 w-24" />
+        <div className="flex flex-col items-center justify-center min-h-screen">
+            <div className="flex items-center gap-2 mb-4">
+                <Logo className="h-8 w-8 text-primary" />
+                <h1 className="text-2xl font-bold font-headline">CreditWise AI</h1>
             </div>
-            <div className="space-y-6 mt-6">
-                <Skeleton className="h-64 w-full rounded-lg" />
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <LoaderCircle className="animate-spin h-5 w-5" />
+                <span>Redirecting to your dashboard...</span>
             </div>
         </div>
     );
@@ -54,19 +60,36 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold font-headline tracking-tight">
-                FinSight Analyzer
+                CreditWise AI
             </h1>
         </div>
         <div className="ml-auto">
-            <Button onClick={handleLogout} variant="outline">
+            <Button onClick={handleLogout} variant="outline" size="sm">
                 <LogOut />
-                <span>Logout</span>
+                <span className="hidden sm:inline">Logout</span>
             </Button>
         </div>
       </header>
       <main className="flex-1 p-4 md:p-6">
-        <AnalysisTabs />
+        {/* Content for the selected tab can go here */}
       </main>
+      <footer className="sticky bottom-0 z-30 flex h-16 items-center justify-center gap-4 border-t bg-background/95 p-2 backdrop-blur-sm">
+        <nav className="flex w-full items-center justify-around">
+            {navItems.map((item) => (
+                <button 
+                    key={item.name} 
+                    onClick={() => setActiveTab(item.name)}
+                    className={cn(
+                        "flex flex-col items-center justify-center gap-1 text-xs w-16 transition-colors",
+                        activeTab === item.name ? "text-primary" : "text-muted-foreground hover:text-primary"
+                    )}
+                >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.name}</span>
+                </button>
+            ))}
+        </nav>
+      </footer>
     </div>
   );
 }
