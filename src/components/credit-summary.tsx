@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
-import { ArrowLeft, CheckCircle, Circle, HelpCircle, XCircle } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import {
   ChartContainer,
   ChartTooltip,
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/chart";
 import { PieChart, Pie, Cell } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { cn } from '@/lib/utils';
 
 interface CreditSummaryProps {
   analysis: CibilReportAnalysis;
@@ -24,7 +25,7 @@ interface CreditSummaryProps {
 }
 
 const SummaryCard = ({ title, value, subValue }: { title: string; value: string | number; subValue?: string }) => (
-    <div className="bg-background border rounded-lg p-4 flex-1 text-center">
+    <div className="bg-background border rounded-lg p-4 flex-1 text-center min-w-[120px]">
         <p className="text-sm text-muted-foreground">{title}</p>
         <p className="text-2xl font-bold">{value}</p>
         {subValue && <p className="text-xs text-muted-foreground">{subValue}</p>}
@@ -39,21 +40,44 @@ const getStatusColor = (status: string) => {
     }
 };
 
-const getDpdColor = (dpd: string) => {
-    if (dpd === '0') return 'text-green-500';
-    if (dpd === 'X') return 'text-muted-foreground';
-    return 'text-red-500';
+
+const PaymentHistoryIcon = ({ dpd }: { dpd: string }) => {
+    const isDelayed = !['0', 'STD', 'XXX'].includes(dpd.toUpperCase());
+    const displayValue = dpd.toUpperCase() === 'STD' ? '0' : dpd;
+
+    return (
+        <div className={cn(
+            "h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-white",
+            isDelayed ? "bg-red-500" : "bg-green-500"
+        )}>
+           {displayValue === 'XXX' ? 'X' : '✓'}
+        </div>
+    )
+};
+
+
+const DpdCircle = ({ value }: { value: string | number }) => {
+    const isDelayed = value !== 'STD' && value !== '000' && value !== 'XXX' && value !== 0;
+    
+    let displayValue = value;
+    if (value === 'STD' || value === '000') displayValue = '0';
+    if (value === 'XXX') displayValue = 'X';
+
+
+    return (
+        <div title={`DPD: ${value}`} className={cn("w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-mono",
+            isDelayed ? 'bg-red-500' : 'bg-green-500'
+        )}>
+            <span className="scale-75">{displayValue}</span>
+        </div>
+    )
 }
 
-const getDpdIcon = (dpd: string) => {
-    if (dpd === '0') return <CheckCircle className="h-4 w-4 text-green-500" />;
-    if (dpd === 'X') return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
-    return <XCircle className="h-4 w-4 text-red-500" />;
-}
+
 
 export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     const [dpdFilter, setDpdFilter] = useState('12');
-    const { detailedAccounts, accountSummary } = analysis;
+    const { detailedAccounts } = analysis;
 
     const summaryData = useMemo(() => {
         const activeAccounts = detailedAccounts.filter(acc => acc.status === 'Active');
@@ -91,12 +115,18 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         const analysis = { '1-30': 0, '31-60': 0, '61-90': 0, '90+': 0, 'ontime': 0 };
         detailedAccounts.forEach(acc => {
             const history = acc.paymentHistory.slice(0, months);
-            history.forEach(dpd => {
-                if (dpd === '30') analysis['1-30']++;
-                else if (dpd === '60') analysis['31-60']++;
-                else if (dpd === '90') analysis['61-90']++;
-                else if (dpd === '90+') analysis['90+']++;
-                else if (dpd === '0') analysis.ontime++;
+            history.forEach(dpdStr => {
+                const dpd = parseInt(dpdStr);
+                if(isNaN(dpd)) {
+                    if (dpdStr === 'STD' || dpdStr === '0') analysis.ontime++;
+                    return;
+                }
+
+                if (dpd > 0 && dpd <= 30) analysis['1-30']++;
+                else if (dpd > 30 && dpd <= 60) analysis['31-60']++;
+                else if (dpd > 60 && dpd <= 90) analysis['61-90']++;
+                else if (dpd > 90) analysis['90+']++;
+                else if (dpd === 0) analysis.ontime++;
             });
         });
         return analysis;
@@ -117,7 +147,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         "Written Off": { label: "Written Off", color: "hsl(var(--chart-3))" },
         Settled: { label: "Settled", color: "hsl(var(--chart-4))" },
         Doubtful: { label: "Doubtful", color: "hsl(var(--chart-5))" },
-    };
+    } as const;
     
 
   return (
@@ -131,7 +161,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                 <CardDescription>A high-level overview of your credit accounts.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div className="flex flex-wrap gap-4">
                     <SummaryCard title="Total Accounts" value={summaryData.totalAccounts} />
                     <SummaryCard title="Active Accounts" value={summaryData.activeAccounts} />
                     <SummaryCard title="Closed Accounts" value={summaryData.closedAccounts} />
@@ -196,7 +226,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     <CardTitle>Account Status Breakdown</CardTitle>
                     <CardDescription>Distribution of your credit accounts by status.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex justify-center items-center">
                     <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[200px]">
                         <PieChart>
                             <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
@@ -247,11 +277,9 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     <TableCell className="text-right">₹{(acc.emi || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell>{acc.dateOpened}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 flex-wrap">
                         {acc.paymentHistory.slice(0, 12).map((dpd, i) => (
-                           <div key={i} title={`DPD: ${dpd}`}>
-                               {getDpdIcon(dpd)}
-                           </div>
+                           <DpdCircle key={i} value={dpd} />
                         ))}
                       </div>
                     </TableCell>
