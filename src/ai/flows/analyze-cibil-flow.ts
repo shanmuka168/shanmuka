@@ -22,6 +22,7 @@ export type AnalyzeCibilReportInput = z.infer<typeof AnalyzeCibilReportInputSche
 
 const AccountDetailSchema = z.object({
     accountType: z.string().describe("The type of the credit account (e.g., Credit Card, Personal Loan)."),
+    ownershipType: z.enum(['Individual', 'Guarantor', 'Joint']).describe("The ownership type of the account (e.g., Individual, Guarantor, Joint)."),
     status: z.enum(['Active', 'Closed', 'Written Off', 'Settled', 'Doubtful']).describe("The current status of the account."),
     sanctionedAmount: z.number().describe("The sanctioned loan amount or credit limit."),
     currentBalance: z.number().describe("The current outstanding balance."),
@@ -79,7 +80,7 @@ const prompt = ai.definePrompt({
   - Account Summary: Extract the total number of accounts, number of active accounts, total high credit/sanctioned amount, total current balance, total overdue amount, and total written-off amount. All values should be numbers.
   - Enquiry Summary: Extract the total number of enquiries, enquiries in the last 30 days, 12 months, and 24 months. Also, provide the date of the most recent enquiry.
   - Overall Summary: Write a concise, one-paragraph summary of the credit health based on the report.
-  - Detailed Accounts: Extract a detailed list of all individual credit accounts. For each account, provide the account type, status, sanctioned amount, current balance, overdue amount, EMI, date opened, and payment history. For payment history, extract the actual DPD values like 'STD', '0', '30', '90', 'XXX' etc.
+  - Detailed Accounts: Extract a detailed list of all individual credit accounts. For each account, provide the account type, ownership type, status, sanctioned amount, current balance, overdue amount, EMI, date opened, and payment history. For payment history, extract the actual DPD values like 'STD', '0', '30', '90', 'XXX' etc.
 
   Ensure all dates are in DD-MM-YYYY format. If a specific piece of information is not available in the report, use a reasonable default value (like 0 for numerical fields or "N/A" for strings) but try your best to find it.
 

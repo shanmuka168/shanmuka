@@ -347,7 +347,10 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                 {detailedAccounts.map((acc, index) => (
                   <React.Fragment key={index}>
                     <TableRow>
-                      <TableCell className="font-medium">{acc.accountType}</TableCell>
+                      <TableCell className="font-medium">
+                        <div>{acc.accountType}</div>
+                        <div className="text-xs text-muted-foreground">({acc.ownershipType})</div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`border-none text-white ${getStatusColor(acc.status)}`}>
                           {acc.status}
