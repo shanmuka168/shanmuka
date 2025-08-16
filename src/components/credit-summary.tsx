@@ -159,7 +159,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                 if (dpdStr === 'XXX') return; // Ignore months with no data
                 analysis.total++;
 
-                const dpdNum = parseInt(String(dpdStr).replace('STD', '0'), 10);
+                const dpdNum = parseInt(String(dpdStr).replace(/STD|000/g, '0'), 10);
 
                 if (isNaN(dpdNum) || dpdNum === 0) {
                     analysis.ontime++;
@@ -204,7 +204,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                 }
                 const trend = trendMap.get(month)!;
                 
-                const dpdNum = parseInt(String(dpd).replace('STD', '0'));
+                const dpdNum = parseInt(String(dpd).replace(/STD|000/g, '0'));
                 if (isNaN(dpdNum) || dpdNum === 0) {
                     trend.onTime++;
                 } else {
@@ -669,5 +669,3 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </>
   );
 }
-
-    
