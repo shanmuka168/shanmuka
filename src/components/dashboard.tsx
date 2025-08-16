@@ -8,15 +8,17 @@ import { SummaryCards } from "./summary-cards";
 import { TransactionsTable } from "./transactions-table";
 import { SpendingCharts } from "./spending-charts";
 import { Button } from "./ui/button";
-import { Upload, Trash2 } from "lucide-react";
+import { Upload, Trash2, FileUp } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
+import { Input } from "./ui/input";
 
 const LOCAL_STORAGE_KEY = "finsight-transactions";
 
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [cibilFile, setCibilFile] = useState<File | null>(null);
 
   useEffect(() => {
     try {
@@ -47,6 +49,20 @@ export default function Dashboard() {
   const clearData = () => {
     handleSetTransactions([]);
   };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      setCibilFile(event.target.files[0]);
+    }
+  };
+
+  const handleUpload = () => {
+    if (cibilFile) {
+      // Handle file upload logic here
+      console.log("Uploading file:", cibilFile.name);
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -103,6 +119,28 @@ export default function Dashboard() {
                 </Card>
             </div>
             <div className="lg:col-span-1 space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="font-headline">Upload CIBIL Report</CardTitle>
+                        <CardDescription>
+                            Upload your CIBIL report to get insights on your credit score.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center gap-2">
+                            <Input type="file" onChange={handleFileChange} className="w-full" />
+                        </div>
+                        {cibilFile && (
+                            <div className="text-sm text-muted-foreground">
+                                Selected file: {cibilFile.name}
+                            </div>
+                        )}
+                        <Button onClick={handleUpload} className="w-full" disabled={!cibilFile}>
+                            <FileUp />
+                            <span>Upload Report</span>
+                        </Button>
+                    </CardContent>
+                </Card>
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">Data Actions</CardTitle>
