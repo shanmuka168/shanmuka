@@ -15,6 +15,8 @@ import { Input } from "./ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeCibilReport, CibilReportAnalysis } from "@/ai/flows/analyze-cibil-flow";
 import { CibilAnalysisCard } from "./cibil-analysis-card";
+import { AnalysisTabs } from "./analysis-tabs";
+import { BankStatementAnalysis, analyzeBankStatement } from "@/ai/flows/analyze-bank-statement-flow";
 
 const LOCAL_STORAGE_KEY = "finsight-transactions";
 const CIBIL_ANALYSIS_KEY = "finsight-cibil-analysis";
@@ -23,9 +25,11 @@ export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [cibilFile, setCibilFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isCibilUploading, setIsCibilUploading] = useState(false);
   const [cibilAnalysis, setCibilAnalysis] = useState<CibilReportAnalysis | null>(null);
   const [statementFile, setStatementFile] = useState<File | null>(null);
+  const [isStatementProcessing, setIsStatementProcessing] = useState(false);
+  
   const { toast } = useToast();
 
   useEffect(() => {
@@ -47,8 +51,9 @@ export default function Dashboard() {
 
   const handleSetTransactions = (newTransactions: Transaction[]) => {
     try {
-      setTransactions(newTransactions);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newTransactions));
+      const sorted = newTransactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setTransactions(sorted);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(sorted));
     } catch (error) {
       console.error("Failed to save transactions to local storage", error);
     }
@@ -115,15 +120,56 @@ export default function Dashboard() {
   }
   
   const handleStatementUpload = async () => {
-    toast({
-        title: "Coming Soon!",
-        description: "Bank statement processing is not yet implemented.",
-    });
+    if (statementFile) {
+        setIsStatementProcessing(true);
+        try {
+            const reader = new FileReader();
+            reader.readAsDataURL(statementFile);
+            reader.onload = async () => {
+                const dataUri = reader.result as string;
+                try {
+                    const analysis: BankStatementAnalysis = await analyzeBankStatement({ statementDataUri: dataUri });
+                    handleSetTransactions([...transactions, ...analysis.transactions]);
+                    toast({
+                        title: "Processing Complete",
+                        description: `Extracted ${analysis.transactions.length} transactions from your bank statement.`,
+                    });
+                } catch (error) {
+                    console.error("Failed to analyze bank statement:", error);
+                    toast({
+                        title: "Analysis Failed",
+                        description: "Could not process the bank statement. Please try again.",
+                        variant: "destructive",
+                    });
+                } finally {
+                    setIsStatementProcessing(false);
+                    setStatementFile(null);
+                }
+            };
+            reader.onerror = (error) => {
+                console.error("Failed to read file:", error);
+                toast({
+                    title: "File Read Error",
+                    description: "There was an error reading your file. Please try again.",
+                    variant: "destructive",
+                });
+                setIsStatementProcessing(false);
+            };
+        } catch (error) {
+             console.error("File upload error:", error);
+            toast({
+                title: "Upload Error",
+                description: "An unexpected error occurred during file upload.",
+                variant: "destructive",
+            });
+            setIsStatementProcessing(false);
+        }
+    }
   }
 
   const handleCibilUpload = async () => {
     if (cibilFile) {
-        setIsUploading(true);
+        setIsCibilUploading(true);
         handleSetCibilAnalysis(null);
 
         try {
@@ -146,7 +192,8 @@ export default function Dashboard() {
                         variant: "destructive",
                     });
                 } finally {
-                    setIsUploading(false);
+                    setIsCibilUploading(false);
+                    setCibilFile(null);
                 }
             };
             reader.onerror = (error) => {
@@ -156,7 +203,7 @@ export default function Dashboard() {
                     description: "There was an error reading your file. Please try again.",
                     variant: "destructive",
                 });
-                setIsUploading(false);
+                setIsCibilUploading(false);
             };
         } catch (error) {
             console.error("File upload error:", error);
@@ -165,7 +212,7 @@ export default function Dashboard() {
                 description: "An unexpected error occurred during file upload.",
                 variant: "destructive",
             });
-            setIsUploading(false);
+            setIsCibilUploading(false);
         }
     }
   };
@@ -225,73 +272,19 @@ export default function Dashboard() {
                 </Card>
             </div>
             <div className="lg:col-span-1 space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="font-headline">Upload CIBIL Report</CardTitle>
-                        <CardDescription>
-                            Upload your CIBIL report (PDF) to get insights on your credit score.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <Input type="file" onChange={handleCibilFileChange} accept="application/pdf" className="w-full" disabled={isUploading}/>
-                        </div>
-                        {cibilFile && (
-                            <div className="text-sm text-muted-foreground">
-                                Selected file: {cibilFile.name}
-                            </div>
-                        )}
-                        <Button onClick={handleCibilUpload} className="w-full" disabled={!cibilFile || isUploading}>
-                            {isUploading ? <LoaderCircle className="animate-spin" /> : <FileCheck />}
-                            <span>{isUploading ? "Analyzing..." : "Analyze Report"}</span>
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="font-headline">Upload Bank Statement</CardTitle>
-                        <CardDescription>
-                            Upload your bank statement (PDF) to extract transactions.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <Input type="file" onChange={handleStatementFileChange} accept="application/pdf" className="w-full" />
-                        </div>
-                        {statementFile && (
-                            <div className="text-sm text-muted-foreground">
-                                Selected file: {statementFile.name}
-                            </div>
-                        )}
-                        <Button onClick={handleStatementUpload} className="w-full" disabled={!statementFile}>
-                            <FileScan />
-                            <span>Process Statement</span>
-                        </Button>
-                    </CardContent>
-                </Card>
                 
-                {isUploading && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="font-headline">CIBIL Report Analysis</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                                <LoaderCircle className="animate-spin" />
-                                <p>Analyzing your report...</p>
-                            </div>
-                            <Skeleton className="h-20 w-full" />
-                            <Skeleton className="h-20 w-full" />
-                            <Skeleton className="h-20 w-full" />
-                        </CardContent>
-                    </Card>
-                )}
+                <AnalysisTabs
+                    cibilFile={cibilFile}
+                    handleCibilFileChange={handleCibilFileChange}
+                    isCibilUploading={isCibilUploading}
+                    handleCibilUpload={handleCibilUpload}
+                    cibilAnalysis={cibilAnalysis}
+                    statementFile={statementFile}
+                    handleStatementFileChange={handleStatementFileChange}
+                    isStatementProcessing={isStatementProcessing}
+                    handleStatementUpload={handleStatementUpload}
+                />
                 
-                {cibilAnalysis && !isUploading && (
-                    <CibilAnalysisCard analysis={cibilAnalysis} />
-                )}
-
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">Data Actions</CardTitle>
