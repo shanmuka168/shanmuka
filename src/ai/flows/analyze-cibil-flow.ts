@@ -30,8 +30,25 @@ const AccountDetailSchema = z.object({
     emi: z.number().optional().describe("The Equated Monthly Installment (EMI), if applicable."),
     dateOpened: z.string().describe("The date the account was opened in DD-MM-YYYY format."),
     dateClosed: z.string().optional().describe("The date the account was closed in DD-MM-YYYY format, if applicable."),
-    paymentHistory: z.array(z.string()).describe("An array of strings representing the payment status. Use 'STD' or '0' for paid on time, '30' for 1-30 days past due, '60' for 31-60, '90' for 61-90, '90+' or a specific number like '120' for 90+ days, and 'XXX' for no data."),
+    paymentHistory: z.array(z.string()).describe("An array of strings representing the payment status for the last 36 months. Use 'STD' or '0' for paid on time, '30' for 1-30 days past due, '60' for 31-60, '90' for 61-90, '90+' or a specific number like '120' for 90+ days, and 'XXX' for no data."),
 });
+
+
+const PaymentTrendDataSchema = z.object({
+    month: z.string().describe("The month for the data point (e.g., 'Jan '23')."),
+    onTime: z.number().describe("Number of on-time payments for that month."),
+    late: z.number().describe("Number of late payments for that month."),
+});
+
+const BehaviorAnalysisSchema = z.object({
+    rating: z.enum(['Excellent', 'Good', 'Fair', 'Poor', 'No Data']).describe("The overall payment behavior rating."),
+    summary: z.string().describe("A comprehensive, one-paragraph explanation of the payment behavior, including patterns, trends, and potential impact."),
+    paymentTrend: z.array(PaymentTrendDataSchema).describe("An array of payment trend data for the last 12 months."),
+    totalPayments: z.number().describe("Total number of payments recorded over the last 12 months."),
+    onTimePayments: z.number().describe("Number of on-time payments over the last 12 months."),
+    latePayments: z.number().describe("Number of late payments over the last 12 months."),
+});
+
 
 const CibilReportAnalysisSchema = z.object({
     creditScore: z.number().describe('The CIBIL credit score.'),
@@ -58,7 +75,11 @@ const CibilReportAnalysisSchema = z.object({
         last24Months: z.number().describe('Number of enquiries made in the last 24 months.'),
         mostRecentEnquiryDate: z.string().describe('The date of the most recent enquiry in DD-MM-YYYY format.'),
     }),
-    overallSummary: z.string().describe('A concise, one-paragraph overall summary of the credit report, highlighting the most important positive and negative aspects.'),
+    behavioralSummary: z.object({
+        individual: BehaviorAnalysisSchema.describe("The payment behavior analysis for accounts where the ownership is 'Individual'."),
+        guarantor: BehaviorAnalysisSchema.describe("The payment behavior analysis for accounts where the ownership is 'Guarantor'."),
+        joint: BehaviorAnalysisSchema.describe("The payment behavior analysis for accounts where the ownership is 'Joint'."),
+    }).describe("A detailed breakdown of payment behavior based on ownership type."),
     detailedAccounts: z.array(AccountDetailSchema).describe("A detailed list of all credit accounts found in the report.")
 });
 export type CibilReportAnalysis = z.infer<typeof CibilReportAnalysisSchema>;
@@ -77,11 +98,15 @@ const prompt = ai.definePrompt({
   
   Please provide a detailed and accurate analysis covering the following points:
   - CIBIL Score.
-  - Consumer Information: Extract the person's name, date of birth, gender, and full address.
-  - Account Summary: Extract the total number of accounts, number of active accounts, total high credit/sanctioned amount, total current balance, total overdue amount, and total written-off amount. All values should be numbers.
-  - Enquiry Summary: Extract the total number of enquiries, enquiries in the last 30 days, 12 months, and 24 months. Also, provide the date of the most recent enquiry.
-  - Overall Summary: Write a concise, one-paragraph summary of the credit health based on the report.
-  - Detailed Accounts: Extract a detailed list of all individual credit accounts. For each account, provide the account type, ownership type, status, sanctioned amount, current balance, overdue amount, EMI, date opened, date closed (if applicable), and payment history. For payment history, extract the actual DPD values like 'STD', '0', '30', '90', 'XXX' etc.
+  - Consumer Information.
+  - Account Summary.
+  - Enquiry Summary.
+  - Behavioral Summary: This is the most critical part. For each ownership type (Individual, Guarantor, Joint), analyze all **active** accounts. 
+    - Based on the payment history of the last 12 months, provide a rating: 'Excellent' (100% on-time), 'Good' (95-99% on-time), 'Fair' (85-94% on-time), or 'Poor' (<85% on-time). If there's no data, use 'No Data'.
+    - Write a comprehensive, one-paragraph summary explaining the payment behavior, noting any patterns of late payments (e.g., recent delays, specific accounts).
+    - Generate a month-by-month payment trend for the last 12 months, counting the number of 'onTime' and 'late' payments across all active accounts for that ownership type. The month should be in 'Mmm 'YY' format.
+    - Provide total, on-time, and late payment counts for the last 12 months.
+  - Detailed Accounts: Extract a detailed list of all individual credit accounts, including their full 36-month payment history if available.
 
   Ensure all dates are in DD-MM-YYYY format. If a specific piece of information is not available in the report, use a reasonable default value (like 0 for numerical fields or "N/A" for strings) but try your best to find it.
 

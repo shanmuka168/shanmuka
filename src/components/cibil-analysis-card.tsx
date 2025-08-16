@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -52,7 +53,7 @@ const getScoreColor = (score: number) => {
 }
 
 export function CibilAnalysisCard({ analysis, onViewDetails }: CibilAnalysisCardProps) {
-  const { creditScore, consumerInformation, accountSummary, enquirySummary, overallSummary } = analysis;
+  const { creditScore, consumerInformation, accountSummary, enquirySummary } = analysis;
 
   return (
     <div className="space-y-6">
@@ -115,20 +116,6 @@ export function CibilAnalysisCard({ analysis, onViewDetails }: CibilAnalysisCard
                         <SummaryCard label="Last 24 Months" value={enquirySummary.last24Months} icon={Clock} />
                         <SummaryCard label="Most Recent Enquiry" value={enquirySummary.mostRecentEnquiryDate} icon={Calendar} />
                     </div>
-                </div>
-                 <div>
-                    <Accordion type="single" collapsible>
-                        <AccordionItem value="item-1">
-                            <AccordionTrigger>
-                                <div className="flex items-center gap-2 font-semibold">
-                                    Overall AI Summary
-                                </div>
-                            </AccordionTrigger>
-                            <AccordionContent>
-                                <p className="text-sm text-muted-foreground leading-relaxed">{overallSummary}</p>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
                 </div>
             </CardContent>
         </Card>

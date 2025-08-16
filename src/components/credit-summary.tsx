@@ -8,7 +8,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
-import { ArrowLeft, CheckCircle, XCircle, Info, ThumbsUp, ThumbsDown, AlertTriangle } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import {
   ChartContainer,
   ChartTooltip,
@@ -19,6 +19,8 @@ import {
 import { PieChart, Pie, Cell } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { BehaviorAnalysisCard } from "./behavior-analysis-card";
 
 interface CreditSummaryProps {
   analysis: CibilReportAnalysis;
@@ -42,8 +44,8 @@ const getStatusColor = (status: string) => {
 };
 
 const DpdCircle = ({ value }: { value: string | number }) => {
-    let displayValue = value;
-    if (value === 'STD' || value === '000') displayValue = '0';
+    let displayValue: string | number = value;
+    if (value === 'STD' || value === '000' || value === '0') displayValue = '0';
     if (value === 'XXX') displayValue = 'X';
 
     const getDpdColor = (dpdStr: string | number) => {
@@ -52,7 +54,7 @@ const DpdCircle = ({ value }: { value: string | number }) => {
         }
         if (dpdStr === 'XXX') return 'bg-gray-400';
         
-        const dpd = parseInt(String(dpdStr));
+        const dpd = parseInt(String(dpdStr), 10);
         if (isNaN(dpd)) return 'bg-gray-400';
 
         if (dpd > 0 && dpd <= 30) return 'bg-yellow-500';
@@ -65,32 +67,14 @@ const DpdCircle = ({ value }: { value: string | number }) => {
     
     return (
         <div title={`DPD: ${value}`} className={cn("w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-mono", getDpdColor(value))}>
-            <span className="scale-75">{displayValue}</span>
+            <span className="scale-75">{String(displayValue)}</span>
         </div>
     )
 }
 
-const BehaviorRating = ({ rating }: { rating: 'Excellent' | 'Good' | 'Fair' | 'Poor' }) => {
-    const config = {
-        Excellent: { icon: ThumbsUp, color: 'text-green-500', text: 'Excellent' },
-        Good: { icon: ThumbsUp, color: 'text-blue-500', text: 'Good' },
-        Fair: { icon: AlertTriangle, color: 'text-yellow-500', text: 'Fair' },
-        Poor: { icon: ThumbsDown, color: 'text-red-500', text: 'Poor' },
-    };
-    const { icon: Icon, color, text } = config[rating];
-
-    return (
-        <div className={`flex items-center gap-2 font-semibold ${color}`}>
-            <Icon className="h-5 w-5" />
-            <span>{text} Payment Behavior</span>
-        </div>
-    );
-};
-
-
 export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     const [dpdFilter, setDpdFilter] = useState('12');
-    const { detailedAccounts } = analysis;
+    const { detailedAccounts, behavioralSummary } = analysis;
 
     const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status === 'Active'), [detailedAccounts]);
 
@@ -137,8 +121,11 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     analysis.ontime++;
                     return;
                 }
-                const dpd = parseInt(String(dpdStr));
-                if(isNaN(dpd)) return;
+                const dpd = parseInt(String(dpdStr), 10);
+                if(isNaN(dpd) || dpd === 0) {
+                    if (dpd === 0) analysis.ontime++;
+                    return
+                };
 
                 if (dpd > 0 && dpd <= 30) analysis['1-30']++;
                 else if (dpd > 30 && dpd <= 60) analysis['31-60']++;
@@ -149,44 +136,6 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         return analysis;
     }, [activeAccounts, dpdFilter]);
 
-    const behaviorAnalysis = useMemo(() => {
-        const totalPayments = dpdAnalysis.total;
-        if(totalPayments === 0) return {
-            rating: 'Fair' as const,
-            summary: 'Not enough payment data available for this period to generate a detailed analysis.',
-            onTimePayments: 0,
-            totalPayments: 0,
-            latePayments: 0
-        };
-
-        const latePayments = totalPayments - dpdAnalysis.ontime;
-        const onTimePercentage = (dpdAnalysis.ontime / totalPayments) * 100;
-
-        let rating: 'Excellent' | 'Good' | 'Fair' | 'Poor';
-        let summary: string;
-
-        if (onTimePercentage >= 99) {
-            rating = 'Excellent';
-            summary = 'Payment history is pristine with virtually all payments made on time. This indicates outstanding financial discipline and reliability as a borrower.';
-        } else if (onTimePercentage >= 95) {
-            rating = 'Good';
-            summary = 'Consistently makes payments on time with very few delays. This demonstrates strong credit management and financial responsibility.';
-        } else if (onTimePercentage >= 85) {
-            rating = 'Fair';
-            summary = 'There are some instances of late payments. While most payments are on time, the occasional delays could be a point of concern for lenders.';
-        } else {
-            rating = 'Poor';
-            summary = 'A significant number of payments have been delayed, indicating potential issues with credit management. This could negatively impact creditworthiness.';
-        }
-
-        return {
-            rating,
-            summary,
-            onTimePayments: dpdAnalysis.ontime,
-            totalPayments,
-            latePayments,
-        };
-    }, [dpdAnalysis]);
 
     const pieChartData = [
         { name: 'Active', value: summaryData.activeAccounts, fill: 'hsl(var(--chart-1))' },
@@ -237,7 +186,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <div>
-                            <CardTitle>DPD Analysis</CardTitle>
+                            <CardTitle>DPD Analysis (Active Accounts)</CardTitle>
                             <CardDescription>Days Past Due breakdown over the selected period.</CardDescription>
                         </div>
                          <Select value={dpdFilter} onValueChange={setDpdFilter}>
@@ -301,38 +250,25 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         <Card>
             <CardHeader>
                 <CardTitle>Customer Payment Behavior</CardTitle>
-                <CardDescription>Analysis for active loans over the last {dpdFilter} months.</CardDescription>
+                <CardDescription>AI-powered analysis of payment patterns for active accounts based on ownership type.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                 <div>
-                    <BehaviorRating rating={behaviorAnalysis.rating} />
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 border rounded-lg flex items-center gap-4">
-                        <CheckCircle className="h-8 w-8 text-green-500" />
-                        <div>
-                            <p className="text-muted-foreground text-sm">On-Time Payments</p>
-                            <p className="text-2xl font-bold">{behaviorAnalysis.onTimePayments}</p>
-                        </div>
-                    </div>
-                     <div className="p-4 border rounded-lg flex items-center gap-4">
-                        <XCircle className="h-8 w-8 text-red-500" />
-                        <div>
-                            <p className="text-muted-foreground text-sm">Late Payments</p>
-                            <p className="text-2xl font-bold">{behaviorAnalysis.latePayments}</p>
-                        </div>
-                    </div>
-                     <div className="p-4 border rounded-lg flex items-center gap-4">
-                        <Info className="h-8 w-8 text-blue-500" />
-                        <div>
-                            <p className="text-muted-foreground text-sm">Total Payments</p>
-                            <p className="text-2xl font-bold">{behaviorAnalysis.totalPayments}</p>
-                        </div>
-                    </div>
-                 </div>
-                 <div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{behaviorAnalysis.summary}</p>
-                 </div>
+            <CardContent>
+                 <Tabs defaultValue="individual">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="individual">Individual</TabsTrigger>
+                        <TabsTrigger value="guarantor">Guarantor</TabsTrigger>
+                        <TabsTrigger value="joint">Joint</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="individual" className="pt-4">
+                        <BehaviorAnalysisCard analysis={behavioralSummary.individual} />
+                    </TabsContent>
+                    <TabsContent value="guarantor" className="pt-4">
+                         <BehaviorAnalysisCard analysis={behavioralSummary.guarantor} />
+                    </TabsContent>
+                    <TabsContent value="joint" className="pt-4">
+                         <BehaviorAnalysisCard analysis={behavioralSummary.joint} />
+                    </TabsContent>
+                </Tabs>
             </CardContent>
         </Card>
 
@@ -380,8 +316,8 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     <TableRow>
                         <TableCell colSpan={6} className="p-2">
                            <div className="flex gap-1 flex-wrap p-2 bg-muted/50 rounded-md">
-                                <span className="text-xs font-semibold mr-2 flex items-center">Payment History (Last 12 months):</span>
-                                {acc.paymentHistory.slice(0, 12).map((dpd, i) => (
+                                <span className="text-xs font-semibold mr-2 flex items-center">Payment History:</span>
+                                {acc.paymentHistory.slice(0, 36).map((dpd, i) => (
                                 <DpdCircle key={i} value={dpd} />
                                 ))}
                             </div>
@@ -397,5 +333,4 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </div>
   );
 }
-
 
