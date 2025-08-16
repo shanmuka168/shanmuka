@@ -295,7 +295,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     const initiateChange = (index: number, updates: Partial<EnhancedAccountDetail>) => {
         const oldAccount = detailedAccounts[index];
         
-        if (updates.status) {
+        if (updates.status || updates.isConsidered !== undefined) {
             setActiveChange({ index, updates, oldAccount });
             setCommentDialogOpen(true);
         } else {
@@ -313,7 +313,11 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         const logPrefix = `(S.No. ${index + 1}):`;
     
         if (updates.isConsidered !== undefined && updates.isConsidered !== oldAccount.isConsidered) {
-            changeLogs.push(`${logPrefix} ${updates.isConsidered ? 'Included' : 'Excluded'} ${accountName} from calculations.`);
+            let log = `${logPrefix} ${updates.isConsidered ? 'Included' : 'Excluded'} ${accountName} from calculations.`;
+            if (commentText) {
+                log += ` Reason: ${commentText}`;
+            }
+            changeLogs.push(log);
         }
         if (updates.status && updates.status !== oldAccount.status) {
             let log = `${logPrefix} Changed status of ${accountName} to '${updates.status}'.`;
@@ -373,6 +377,21 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         
         toast({ title: "Download Ready!", description: "Your PDF has been downloaded." });
     };
+
+    const getDialogDescription = () => {
+        if (!activeChange) return "";
+
+        const { updates, oldAccount } = activeChange;
+        const accountName = `'${oldAccount.accountType}'`;
+
+        if (updates.status) {
+            return `Please provide a reason for changing the status of ${accountName} to '${updates.status}'.`;
+        }
+        if (updates.isConsidered !== undefined) {
+             return `Please provide a reason for ${updates.isConsidered ? 'including' : 'excluding'} the account ${accountName} in calculations.`;
+        }
+        return "Please provide a reason for this change.";
+    }
 
   return (
     <>
@@ -622,7 +641,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             <AlertDialogHeader>
                 <AlertDialogTitle>Add Comment</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Please provide a reason for changing the status of the '{activeChange?.oldAccount.accountType}' account to '{activeChange?.updates.status}'.
+                   {getDialogDescription()}
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <Textarea 
