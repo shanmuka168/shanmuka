@@ -155,7 +155,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         const analysis = { '1-30': 0, '31-60': 0, '61-90': 0, '90+': 0, 'ontime': 0, 'total': 0 };
         
         detailedAccounts.forEach(acc => {
-            const history = dpdFilter === 'overall' ? acc.paymentHistory : acc.paymentHistory.slice(0, months);
+            const history = months === Infinity ? acc.paymentHistory : acc.paymentHistory.slice(0, months);
             history.forEach(dpdStr => {
                 if (dpdStr === 'XXX') return;
                 analysis.total++;
@@ -169,11 +169,11 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
 
                 if (isNaN(dpdNum) || dpdNum === 0) {
                     analysis.ontime++;
-                } else if (dpdNum <= 30) {
+                } else if (dpdNum >= 1 && dpdNum <= 30) {
                     analysis['1-30']++;
-                } else if (dpdNum <= 60) {
+                } else if (dpdNum >= 31 && dpdNum <= 60) {
                     analysis['31-60']++;
-                } else if (dpdNum <= 90) {
+                } else if (dpdNum >= 61 && dpdNum <= 90) {
                     analysis['61-90']++;
                 } else {
                     analysis['90+']++;
@@ -183,13 +183,14 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         return analysis;
     }, [detailedAccounts, dpdFilter]);
 
-    const calculateBehaviorAnalysis = useCallback((ownershipType: OwnershipType, months: number): BehaviorAnalysisData | null => {
+    const calculateBehaviorAnalysis = useCallback((ownershipType: OwnershipType): BehaviorAnalysisData | null => {
+        const months = dpdFilter === 'overall' ? Infinity : parseInt(dpdFilter);
         const accounts = activeAccounts.filter(acc => acc.ownershipType === ownershipType);
         if (accounts.length === 0) {
             return { rating: 'No Data', summary: '', paymentTrend: [], totalPayments: 0, onTimePayments: 0, latePayments: 0 };
         }
 
-        const paymentHistory: SummarizePaymentBehaviorInput['paymentHistory'] = [];
+        const paymentHistoryForAI: SummarizePaymentBehaviorInput['paymentHistory'] = [];
         const trendMap = new Map<string, { month: string, onTime: number, late: number }>();
 
         let totalPayments = 0;
@@ -197,19 +198,17 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
 
         accounts.forEach(acc => {
             const historySlice = months === Infinity ? acc.paymentHistory : acc.paymentHistory.slice(0, months);
-            const history = historySlice.map((dpd, i) => {
+            
+            paymentHistoryForAI.push({ accountType: acc.accountType, history: historySlice });
+
+            historySlice.forEach((dpd, i) => {
                  const date = new Date();
                  date.setMonth(date.getMonth() - i);
                  const month = date.toLocaleString('default', { month: 'short' }) + " '" + date.getFullYear().toString().slice(-2);
-                 return { month, dpd };
-            });
-
-            paymentHistory.push({ accountType: acc.accountType, history: history.map(h => h.dpd) });
-
-            history.forEach(({month, dpd}) => {
+                 
                 if (dpd === 'XXX') return;
 
-                 totalPayments++;
+                totalPayments++;
                 if (!trendMap.has(month)) {
                     trendMap.set(month, { month, onTime: 0, late: 0 });
                 }
@@ -237,39 +236,27 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             else rating = 'Poor';
         }
 
-        return { rating, summary: '', paymentTrend, totalPayments, onTimePayments, latePayments };
-    }, [activeAccounts]);
+        return { rating, summary: '', paymentTrend, totalPayments, onTimePayments, latePayments, paymentHistoryForAI };
+    }, [activeAccounts, dpdFilter]);
 
     useEffect(() => {
-        const months = dpdFilter === 'overall' ? Infinity : parseInt(dpdFilter);
         const ownershipTypes: OwnershipType[] = ['Individual', 'Guarantor', 'Joint'];
         
         startAiSummaryTransition(() => {
             ownershipTypes.forEach(async (type) => {
-                const baseAnalysis = calculateBehaviorAnalysis(type, months);
-                if (!baseAnalysis || baseAnalysis.rating === 'No Data') {
+                const baseAnalysis = calculateBehaviorAnalysis(type);
+
+                if (!baseAnalysis || baseAnalysis.rating === 'No Data' || !baseAnalysis.paymentHistoryForAI || baseAnalysis.paymentHistoryForAI.length === 0) {
                     setBehaviorAnalyses(prev => ({...prev, [type]: baseAnalysis}));
                     return;
                 }
                 
                  try {
-                     const paymentHistoryForAI = activeAccounts
-                        .filter(acc => acc.ownershipType === type)
-                        .map(acc => ({
-                            accountType: acc.accountType,
-                            history: months === Infinity ? acc.paymentHistory : acc.paymentHistory.slice(0, months)
-                        }));
-
-                    if (paymentHistoryForAI.length === 0) {
-                        setBehaviorAnalyses(prev => ({...prev, [type]: baseAnalysis}));
-                        return;
-                    }
-
                     const result = await summarizePaymentBehavior({
                         rating: baseAnalysis.rating,
-                        paymentHistory: paymentHistoryForAI
+                        paymentHistory: baseAnalysis.paymentHistoryForAI,
                     });
-                     setBehaviorAnalyses(prev => ({...prev, [type]: {...baseAnalysis, summary: result.summary }}));
+                    setBehaviorAnalyses(prev => ({...prev, [type]: {...baseAnalysis, summary: result.summary }}));
                 } catch(e) {
                     console.error("Error generating AI summary", e);
                     toast({ title: "AI Summary Failed", description: "Could not generate AI summary for " + type, variant: "destructive"});
@@ -626,7 +613,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                 <TableCell colSpan={7} className="p-2">
                                    <div className="flex gap-1 flex-wrap p-2 bg-background/50 rounded-md">
                                         <span className="text-xs font-semibold mr-2 flex items-center">Payment History:</span>
-                                        {acc.paymentHistory.slice(0, 36).map((dpd, i) => (
+                                        {acc.paymentHistory.map((dpd, i) => (
                                         <DpdCircle key={i} value={dpd} />
                                         ))}
                                     </div>
@@ -677,5 +664,3 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </>
   );
 }
-
-    
