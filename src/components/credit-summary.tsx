@@ -151,10 +151,11 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     }, [detailedAccounts]);
     
     const dpdAnalysis = useMemo(() => {
-        const months = dpdFilter === 'overall' ? 36 : parseInt(dpdFilter);
+        const months = dpdFilter === 'overall' ? Infinity : parseInt(dpdFilter);
         const analysis = { '1-30': 0, '31-60': 0, '61-90': 0, '90+': 0, 'ontime': 0, 'total': 0 };
+        
         detailedAccounts.forEach(acc => {
-            const history = acc.paymentHistory.slice(0, months);
+            const history = dpdFilter === 'overall' ? acc.paymentHistory : acc.paymentHistory.slice(0, months);
             history.forEach(dpdStr => {
                 if (dpdStr === 'XXX') return;
                 analysis.total++;
@@ -195,7 +196,8 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         let onTimePayments = 0;
 
         accounts.forEach(acc => {
-            const history = acc.paymentHistory.slice(0, months).map((dpd, i) => {
+            const historySlice = months === Infinity ? acc.paymentHistory : acc.paymentHistory.slice(0, months);
+            const history = historySlice.map((dpd, i) => {
                  const date = new Date();
                  date.setMonth(date.getMonth() - i);
                  const month = date.toLocaleString('default', { month: 'short' }) + " '" + date.getFullYear().toString().slice(-2);
@@ -239,7 +241,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     }, [activeAccounts]);
 
     useEffect(() => {
-        const months = dpdFilter === 'overall' ? 36 : parseInt(dpdFilter);
+        const months = dpdFilter === 'overall' ? Infinity : parseInt(dpdFilter);
         const ownershipTypes: OwnershipType[] = ['Individual', 'Guarantor', 'Joint'];
         
         startAiSummaryTransition(() => {
@@ -255,7 +257,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                         .filter(acc => acc.ownershipType === type)
                         .map(acc => ({
                             accountType: acc.accountType,
-                            history: acc.paymentHistory.slice(0, months)
+                            history: months === Infinity ? acc.paymentHistory : acc.paymentHistory.slice(0, months)
                         }));
 
                     if (paymentHistoryForAI.length === 0) {
@@ -675,3 +677,5 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </>
   );
 }
+
+    
