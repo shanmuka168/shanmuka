@@ -295,7 +295,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     const initiateChange = (index: number, updates: Partial<EnhancedAccountDetail>) => {
         const oldAccount = detailedAccounts[index];
         
-        if (updates.status || updates.isConsidered !== undefined) {
+        if (updates.status || updates.isConsidered !== undefined || updates.manualEmi !== undefined) {
             setActiveChange({ index, updates, oldAccount });
             setCommentDialogOpen(true);
         } else {
@@ -327,7 +327,11 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
             changeLogs.push(log);
         }
         if (updates.manualEmi !== undefined && updates.manualEmi !== (oldAccount.manualEmi ?? oldAccount.emi)) {
-            changeLogs.push(`${logPrefix} Updated EMI for ${accountName} to ₹${(updates.manualEmi || 0).toLocaleString('en-IN')}.`);
+             let log = `${logPrefix} Updated EMI for ${accountName} to ₹${(updates.manualEmi || 0).toLocaleString('en-IN')}.`;
+             if (commentText) {
+                log += ` Reason: ${commentText}`;
+            }
+            changeLogs.push(log);
         }
     
         if (changeLogs.length > 0) {
@@ -389,6 +393,9 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         }
         if (updates.isConsidered !== undefined) {
              return `Please provide a reason for ${updates.isConsidered ? 'including' : 'excluding'} the account ${accountName} in calculations.`;
+        }
+        if(updates.manualEmi !== undefined) {
+            return `Please provide a reason for updating the EMI for ${accountName}.`;
         }
         return "Please provide a reason for this change.";
     }
@@ -595,7 +602,12 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                             type="number"
                                             className="w-24 h-8 text-right"
                                             defaultValue={acc.manualEmi ?? acc.emi || ''}
-                                            onBlur={(e) => initiateChange(index, { manualEmi: e.target.valueAsNumber })}
+                                            onBlur={(e) => {
+                                                const newEmi = e.target.valueAsNumber;
+                                                if(newEmi !== (acc.manualEmi ?? acc.emi || 0)) {
+                                                    initiateChange(index, { manualEmi: newEmi })
+                                                }
+                                            }}
                                             placeholder="Enter EMI"
                                         />
                                     ) : (
@@ -658,3 +670,5 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </>
   );
 }
+
+    
