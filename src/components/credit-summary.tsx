@@ -99,7 +99,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         'Guarantor': null,
         'Joint': null,
     });
-     const [hasUserMadeChanges, setHasUserMadeChanges] = useState(false);
+     const [userChanges, setUserChanges] = useState<string[]>([]);
 
     const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status === 'Active' && acc.isConsidered), [detailedAccounts]);
 
@@ -281,10 +281,28 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     } as const;
 
     const handleAccountChange = (index: number, updates: Partial<EnhancedAccountDetail>) => {
-        setHasUserMadeChanges(true);
         const newAccounts = [...detailedAccounts];
-        newAccounts[index] = { ...newAccounts[index], ...updates };
+        const oldAccount = newAccounts[index];
+        newAccounts[index] = { ...oldAccount, ...updates };
         setDetailedAccounts(newAccounts);
+
+        // Track changes
+        const changeLogs: string[] = [];
+        const accountName = `'${oldAccount.accountType}'`;
+
+        if (updates.isConsidered !== undefined && updates.isConsidered !== oldAccount.isConsidered) {
+            changeLogs.push(`${updates.isConsidered ? 'Included' : 'Excluded'} ${accountName} from calculations.`);
+        }
+        if (updates.status && updates.status !== oldAccount.status) {
+            changeLogs.push(`Changed status of ${accountName} to '${updates.status}'.`);
+        }
+        if (updates.manualEmi !== undefined && updates.manualEmi !== (oldAccount.manualEmi ?? oldAccount.emi)) {
+            changeLogs.push(`Updated EMI for ${accountName} to ₹${updates.manualEmi.toLocaleString('en-IN')}.`);
+        }
+        
+        if (changeLogs.length > 0) {
+            setUserChanges(prev => [...prev, ...changeLogs]);
+        }
     };
     
     const handleDownload = async () => {
@@ -546,15 +564,22 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
           </div>
         </CardContent>
       </Card>
-       {hasUserMadeChanges && (
+       {userChanges.length > 0 && (
          <Alert>
              <InfoIcon className="h-4 w-4" />
-             <AlertTitle>Dynamic Calculations</AlertTitle>
+             <AlertTitle>Manual Changes Applied</AlertTitle>
              <AlertDescription>
-                You have made manual changes to the account data. The summary cards and analyses have been updated to reflect these changes.
+                <p className="mb-2">The summary and analyses have been updated based on the following manual changes:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                    {userChanges.map((change, index) => (
+                        <li key={index}>{change}</li>
+                    ))}
+                </ul>
              </AlertDescription>
          </Alert>
         )}
     </div>
   );
 }
+
+    
