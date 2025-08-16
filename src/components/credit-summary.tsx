@@ -247,8 +247,8 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
               </TableHeader>
               <TableBody>
                 {detailedAccounts.map((acc, index) => (
-                  <>
-                    <TableRow key={index}>
+                  <React.Fragment key={index}>
+                    <TableRow>
                       <TableCell className="font-medium">{acc.accountType}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`border-none text-white ${getStatusColor(acc.status)}`}>
@@ -261,7 +261,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                       <TableCell className="text-right">₹{(acc.emi || 0).toLocaleString('en-IN')}</TableCell>
                       <TableCell>{acc.dateOpened}</TableCell>
                     </TableRow>
-                    <TableRow key={`${index}-history`}>
+                    <TableRow>
                         <TableCell colSpan={7} className="p-2">
                            <div className="flex gap-1 flex-wrap p-2 bg-muted rounded-md">
                                 <span className="text-xs font-semibold mr-2 flex items-center">Payment History (Last 12 months):</span>
@@ -271,7 +271,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                             </div>
                         </TableCell>
                     </TableRow>
-                  </>
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>
