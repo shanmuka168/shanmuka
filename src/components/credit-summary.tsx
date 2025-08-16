@@ -113,7 +113,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     const [activeChange, setActiveChange] = useState<{index: number, updates: Partial<EnhancedAccountDetail>, oldAccount: EnhancedAccountDetail} | null>(null);
     const [comment, setComment] = useState("");
 
-    const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status === 'Active' && acc.isConsidered), [detailedAccounts]);
+    const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status === 'Active'), [detailedAccounts]);
 
     const summaryData = useMemo(() => {
         const consideredAccounts = detailedAccounts.filter(acc => acc.isConsidered);
@@ -164,10 +164,14 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                     return;
                 }
                 const dpd = parseInt(String(dpdStr), 10);
-                if(isNaN(dpd) || dpd === 0) {
-                    if (dpd === 0) analysis.ontime++;
+                if(isNaN(dpd)) {
                     return
                 };
+
+                if (dpd === 0) {
+                     analysis.ontime++;
+                     return;
+                }
 
                 if (dpd > 0 && dpd <= 30) analysis['1-30']++;
                 else if (dpd > 30 && dpd <= 60) analysis['31-60']++;
@@ -581,7 +585,7 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                                             placeholder="Enter EMI"
                                         />
                                     ) : (
-                                        `₹${(acc.emi || 0).toLocaleString('en-IN')}`
+                                        `₹${(acc.manualEmi ?? acc.emi || 0).toLocaleString('en-IN')}`
                                     )}
                                 </TableCell>
                             </TableRow>
