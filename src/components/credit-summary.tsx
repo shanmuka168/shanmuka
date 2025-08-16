@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useTransition, useEffect, useCallback } from 'react';
 import type { CibilReportAnalysis } from '@/ai/flows/analyze-cibil-flow';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
@@ -20,7 +20,9 @@ import { PieChart, Pie, Cell } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { BehaviorAnalysisCard } from "./behavior-analysis-card";
+import { BehaviorAnalysisCard, BehaviorAnalysisData } from "./behavior-analysis-card";
+import { summarizePaymentBehavior, SummarizePaymentBehaviorInput, SummarizePaymentBehaviorOutput } from "@/ai/flows/summarize-payment-behavior";
+import { useToast } from "@/hooks/use-toast";
 
 interface CreditSummaryProps {
   analysis: CibilReportAnalysis;
@@ -72,9 +74,19 @@ const DpdCircle = ({ value }: { value: string | number }) => {
     )
 }
 
+type OwnershipType = 'Individual' | 'Guarantor' | 'Joint';
+
 export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
+    const { toast } = useToast();
     const [dpdFilter, setDpdFilter] = useState('12');
-    const { detailedAccounts, behavioralSummary } = analysis;
+    const { detailedAccounts } = analysis;
+    const [isAiSummaryLoading, startAiSummaryTransition] = useTransition();
+
+    const [behaviorAnalyses, setBehaviorAnalyses] = useState<Record<OwnershipType, BehaviorAnalysisData | null>>({
+        'Individual': null,
+        'Guarantor': null,
+        'Joint': null,
+    });
 
     const activeAccounts = useMemo(() => detailedAccounts.filter(acc => acc.status === 'Active'), [detailedAccounts]);
 
@@ -135,6 +147,99 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
         });
         return analysis;
     }, [activeAccounts, dpdFilter]);
+
+    const calculateBehaviorAnalysis = useCallback((ownershipType: OwnershipType, months: number): BehaviorAnalysisData | null => {
+        const accounts = activeAccounts.filter(acc => acc.ownershipType === ownershipType);
+        if (accounts.length === 0) {
+            return { rating: 'No Data', summary: '', paymentTrend: [], totalPayments: 0, onTimePayments: 0, latePayments: 0 };
+        }
+
+        const paymentHistory: SummarizePaymentBehaviorInput['paymentHistory'] = [];
+        const trendMap = new Map<string, { month: string, onTime: number, late: number }>();
+
+        accounts.forEach(acc => {
+            const history = acc.paymentHistory.slice(0, months).map((dpd, i) => {
+                 const date = new Date();
+                 date.setMonth(date.getMonth() - i);
+                 const month = date.toLocaleString('default', { month: 'short' }) + " '" + date.getFullYear().toString().slice(-2);
+                 return { month, dpd };
+            });
+
+            paymentHistory.push({ accountType: acc.accountType, history });
+
+            history.forEach(({month, dpd}) => {
+                if (dpd === 'XXX') return;
+
+                if (!trendMap.has(month)) {
+                    trendMap.set(month, { month, onTime: 0, late: 0 });
+                }
+                const trend = trendMap.get(month)!;
+                
+                const dpdNum = parseInt(String(dpd).replace('STD', '0'));
+                if (isNaN(dpdNum) || dpdNum === 0) {
+                    trend.onTime++;
+                } else {
+                    trend.late++;
+                }
+            });
+        });
+
+        const paymentTrend = Array.from(trendMap.values()).reverse();
+        const onTimePayments = paymentTrend.reduce((sum, p) => sum + p.onTime, 0);
+        const latePayments = paymentTrend.reduce((sum, p) => sum + p.late, 0);
+        const totalPayments = onTimePayments + latePayments;
+        const onTimePercentage = totalPayments > 0 ? (onTimePayments / totalPayments) * 100 : 100;
+
+        let rating: BehaviorAnalysisData['rating'] = 'No Data';
+        if (totalPayments > 0) {
+            if (onTimePercentage === 100) rating = 'Excellent';
+            else if (onTimePercentage >= 95) rating = 'Good';
+            else if (onTimePercentage >= 85) rating = 'Fair';
+            else rating = 'Poor';
+        }
+
+        return { rating, summary: '', paymentTrend, totalPayments, onTimePayments, latePayments };
+    }, [activeAccounts]);
+
+    useEffect(() => {
+        const months = parseInt(dpdFilter);
+        const ownershipTypes: OwnershipType[] = ['Individual', 'Guarantor', 'Joint'];
+        
+        startAiSummaryTransition(() => {
+            ownershipTypes.forEach(async (type) => {
+                const baseAnalysis = calculateBehaviorAnalysis(type, months);
+                if (!baseAnalysis || baseAnalysis.rating === 'No Data') {
+                    setBehaviorAnalyses(prev => ({...prev, [type]: baseAnalysis}));
+                    return;
+                }
+                
+                 try {
+                     const paymentHistoryForAI = activeAccounts
+                        .filter(acc => acc.ownershipType === type)
+                        .map(acc => ({
+                            accountType: acc.accountType,
+                            history: acc.paymentHistory.slice(0, months)
+                        }));
+
+                    if (paymentHistoryForAI.length === 0) return;
+
+                    const result = await summarizePaymentBehavior({
+                        rating: baseAnalysis.rating,
+                        totalPayments: baseAnalysis.totalPayments,
+                        onTimePayments: baseAnalysis.onTimePayments,
+                        latePayments: baseAnalysis.latePayments,
+                        paymentHistory: paymentHistoryForAI
+                    });
+                     setBehaviorAnalyses(prev => ({...prev, [type]: {...baseAnalysis, summary: result.summary }}));
+                } catch(e) {
+                    console.error("Error generating AI summary", e);
+                    toast({ title: "AI Summary Failed", description: "Could not generate AI summary for " + type, variant: "destructive"});
+                    setBehaviorAnalyses(prev => ({...prev, [type]: {...baseAnalysis, summary: "AI summary could not be generated." }}));
+                }
+            })
+        });
+
+    }, [dpdFilter, activeAccounts, calculateBehaviorAnalysis, toast]);
 
 
     const pieChartData = [
@@ -253,20 +358,20 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
                 <CardDescription>AI-powered analysis of payment patterns for active accounts based on ownership type.</CardDescription>
             </CardHeader>
             <CardContent>
-                 <Tabs defaultValue="individual">
+                 <Tabs defaultValue="Individual">
                     <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="individual">Individual</TabsTrigger>
-                        <TabsTrigger value="guarantor">Guarantor</TabsTrigger>
-                        <TabsTrigger value="joint">Joint</TabsTrigger>
+                        <TabsTrigger value="Individual">Individual</TabsTrigger>
+                        <TabsTrigger value="Guarantor">Guarantor</TabsTrigger>
+                        <TabsTrigger value="Joint">Joint</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="individual" className="pt-4">
-                        <BehaviorAnalysisCard analysis={behavioralSummary.individual} />
+                    <TabsContent value="Individual" className="pt-4">
+                        <BehaviorAnalysisCard analysis={behaviorAnalyses.Individual} isLoading={isAiSummaryLoading} />
                     </TabsContent>
-                    <TabsContent value="guarantor" className="pt-4">
-                         <BehaviorAnalysisCard analysis={behavioralSummary.guarantor} />
+                    <TabsContent value="Guarantor" className="pt-4">
+                         <BehaviorAnalysisCard analysis={behaviorAnalyses.Guarantor} isLoading={isAiSummaryLoading} />
                     </TabsContent>
-                    <TabsContent value="joint" className="pt-4">
-                         <BehaviorAnalysisCard analysis={behavioralSummary.joint} />
+                    <TabsContent value="Joint" className="pt-4">
+                         <BehaviorAnalysisCard analysis={behaviorAnalyses.Joint} isLoading={isAiSummaryLoading} />
                     </TabsContent>
                 </Tabs>
             </CardContent>
@@ -333,4 +438,3 @@ export function CreditSummary({ analysis, onBack }: CreditSummaryProps) {
     </div>
   );
 }
-

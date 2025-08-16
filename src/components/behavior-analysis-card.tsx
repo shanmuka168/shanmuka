@@ -1,17 +1,23 @@
 
 "use client"
 
-import { ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle, XCircle, Info, TrendingUp, TrendingDown, HelpCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
+import { ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle, XCircle, Info, HelpCircle } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from './ui/chart';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, LineChart, Line, Legend, Tooltip } from 'recharts';
-import type { CibilReportAnalysis } from '@/ai/flows/analyze-cibil-flow';
-import { useMemo } from 'react';
+import { LineChart, Line, CartesianGrid, XAxis, YAxis, Legend } from 'recharts';
+import { Skeleton } from './ui/skeleton';
 
-type BehaviorAnalysis = CibilReportAnalysis['behavioralSummary']['individual'];
+export type BehaviorAnalysisData = {
+    rating: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'No Data';
+    summary: string;
+    paymentTrend: { month: string; onTime: number; late: number; }[];
+    totalPayments: number;
+    onTimePayments: number;
+    latePayments: number;
+};
 
 interface BehaviorAnalysisCardProps {
-    analysis: BehaviorAnalysis;
+    analysis: BehaviorAnalysisData | null;
+    isLoading: boolean;
 }
 
 const BehaviorRating = ({ rating }: { rating: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'No Data' }) => {
@@ -33,8 +39,7 @@ const BehaviorRating = ({ rating }: { rating: 'Excellent' | 'Good' | 'Fair' | 'P
 };
 
 
-export function BehaviorAnalysisCard({ analysis }: BehaviorAnalysisCardProps) {
-    const { rating, summary, paymentTrend, totalPayments, onTimePayments, latePayments } = analysis;
+export function BehaviorAnalysisCard({ analysis, isLoading }: BehaviorAnalysisCardProps) {
 
     const chartConfig = {
         onTime: {
@@ -47,15 +52,37 @@ export function BehaviorAnalysisCard({ analysis }: BehaviorAnalysisCardProps) {
         },
     }
 
-    if (rating === "No Data") {
+    if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center p-8 space-y-4 text-center text-muted-foreground">
-                <HelpCircle className="h-12 w-12" />
-                <p className="font-bold">No Active Accounts</p>
-                <p className="text-sm">There are no active accounts of this type to analyze.</p>
+             <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Skeleton className="h-16 w-full col-span-1 md:col-span-3" />
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                </div>
+                 <div>
+                    <Skeleton className="h-16 w-full" />
+                 </div>
+                <div>
+                    <Skeleton className="h-8 w-1/3 mb-2" />
+                    <Skeleton className="h-[200px] w-full" />
+                </div>
             </div>
         )
     }
+
+    if (!analysis || analysis.rating === "No Data") {
+        return (
+            <div className="flex flex-col items-center justify-center p-8 space-y-4 text-center text-muted-foreground min-h-[400px]">
+                <HelpCircle className="h-12 w-12" />
+                <p className="font-bold">No Active Accounts</p>
+                <p className="text-sm">There are no active accounts of this type to analyze for the selected period.</p>
+            </div>
+        )
+    }
+
+    const { rating, summary, paymentTrend, totalPayments, onTimePayments, latePayments } = analysis;
 
     return (
         <div className="space-y-6">
@@ -89,7 +116,7 @@ export function BehaviorAnalysisCard({ analysis }: BehaviorAnalysisCardProps) {
                 <p className="text-sm text-muted-foreground leading-relaxed">{summary}</p>
              </div>
             <div>
-                 <h4 className="font-semibold text-sm mb-2">Payment Trend (Last 12 Months)</h4>
+                 <h4 className="font-semibold text-sm mb-2">Payment Trend (Last {paymentTrend.length} Months)</h4>
                  <ChartContainer config={chartConfig} className="h-[200px] w-full">
                     <LineChart accessibilityLayer data={paymentTrend} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
                         <CartesianGrid vertical={false} />
@@ -101,7 +128,7 @@ export function BehaviorAnalysisCard({ analysis }: BehaviorAnalysisCardProps) {
                             tickFormatter={(value) => value.slice(0, 3)}
                         />
                         <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={8} />
-                         <Tooltip content={<ChartTooltipContent />} />
+                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Legend />
                         <Line dataKey="onTime" type="monotone" stroke="var(--color-onTime)" strokeWidth={2} dot={false} name="On-Time" />
                         <Line dataKey="late" type="monotone" stroke="var(--color-late)" strokeWidth={2} dot={false} name="Late" />

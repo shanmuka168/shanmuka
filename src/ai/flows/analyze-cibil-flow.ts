@@ -33,23 +33,6 @@ const AccountDetailSchema = z.object({
     paymentHistory: z.array(z.string()).describe("An array of strings representing the payment status for the last 36 months. Use 'STD' or '0' for paid on time, '30' for 1-30 days past due, '60' for 31-60, '90' for 61-90, '90+' or a specific number like '120' for 90+ days, and 'XXX' for no data."),
 });
 
-
-const PaymentTrendDataSchema = z.object({
-    month: z.string().describe("The month for the data point (e.g., 'Jan '23')."),
-    onTime: z.number().describe("Number of on-time payments for that month."),
-    late: z.number().describe("Number of late payments for that month."),
-});
-
-const BehaviorAnalysisSchema = z.object({
-    rating: z.enum(['Excellent', 'Good', 'Fair', 'Poor', 'No Data']).describe("The overall payment behavior rating."),
-    summary: z.string().describe("A comprehensive, one-paragraph explanation of the payment behavior, including patterns, trends, and potential impact."),
-    paymentTrend: z.array(PaymentTrendDataSchema).describe("An array of payment trend data for the last 12 months."),
-    totalPayments: z.number().describe("Total number of payments recorded over the last 12 months."),
-    onTimePayments: z.number().describe("Number of on-time payments over the last 12 months."),
-    latePayments: z.number().describe("Number of late payments over the last 12 months."),
-});
-
-
 const CibilReportAnalysisSchema = z.object({
     creditScore: z.number().describe('The CIBIL credit score.'),
     consumerInformation: z.object({
@@ -75,11 +58,6 @@ const CibilReportAnalysisSchema = z.object({
         last24Months: z.number().describe('Number of enquiries made in the last 24 months.'),
         mostRecentEnquiryDate: z.string().describe('The date of the most recent enquiry in DD-MM-YYYY format.'),
     }),
-    behavioralSummary: z.object({
-        individual: BehaviorAnalysisSchema.describe("The payment behavior analysis for accounts where the ownership is 'Individual'."),
-        guarantor: BehaviorAnalysisSchema.describe("The payment behavior analysis for accounts where the ownership is 'Guarantor'."),
-        joint: BehaviorAnalysisSchema.describe("The payment behavior analysis for accounts where the ownership is 'Joint'."),
-    }).describe("A detailed breakdown of payment behavior based on ownership type."),
     detailedAccounts: z.array(AccountDetailSchema).describe("A detailed list of all credit accounts found in the report.")
 });
 export type CibilReportAnalysis = z.infer<typeof CibilReportAnalysisSchema>;
@@ -101,11 +79,6 @@ const prompt = ai.definePrompt({
   - Consumer Information.
   - Account Summary.
   - Enquiry Summary.
-  - Behavioral Summary: This is the most critical part. For each ownership type (Individual, Guarantor, Joint), analyze all **active** accounts. 
-    - Based on the payment history of the last 12 months, provide a rating: 'Excellent' (100% on-time), 'Good' (95-99% on-time), 'Fair' (85-94% on-time), or 'Poor' (<85% on-time). If there's no data, use 'No Data'.
-    - Write a comprehensive, one-paragraph summary explaining the payment behavior, noting any patterns of late payments (e.g., recent delays, specific accounts).
-    - Generate a month-by-month payment trend for the last 12 months, counting the number of 'onTime' and 'late' payments across all active accounts for that ownership type. The month should be in 'Mmm 'YY' format.
-    - Provide total, on-time, and late payment counts for the last 12 months.
   - Detailed Accounts: Extract a detailed list of all individual credit accounts, including their full 36-month payment history if available.
 
   Ensure all dates are in DD-MM-YYYY format. If a specific piece of information is not available in the report, use a reasonable default value (like 0 for numerical fields or "N/A" for strings) but try your best to find it.
